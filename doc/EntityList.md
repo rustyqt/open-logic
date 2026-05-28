@@ -35,7 +35,9 @@ Note that components are split into categories.
   - [ft](#ft)
     - [Packages (olo\_ft\_pkg\_\<...\>)](#packages-olo_ft_pkg_)
     - [ECC Codec (olo\_ft\_ecc\_\<...\>)](#ecc-codec-olo_ft_ecc_)
+    - [Clock Crossings (olo\_ft\_cc\_\<...\>)](#clock-crossings-olo_ft_cc_)
     - [RAM Implementations (olo\_ft\_ram\_\<...\>)](#ram-implementations-olo_ft_ram_)
+    - [FIFO Implementations (olo\_ft\_fifo\_\<...\>)](#fifo-implementations-olo_ft_fifo_)
 
 ## base
 
@@ -285,9 +287,10 @@ common constraints) are described once in
 
 ### Packages (olo_ft_pkg_\<...\>)
 
-| Package                                       | Description                                                  |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| [olo_ft_pkg_ecc](./ft/olo_ft_pkg_ecc.md)      | SECDED Hamming code functions for ECC-protected memories. |
+| Package                                       | Description                                                    |
+| --------------------------------------------- | -------------------------------------------------------------- |
+| [olo_ft_pkg_ecc](./ft/olo_ft_pkg_ecc.md)      | SECDED Hamming code functions for ECC-protected memories.      |
+| olo_ft_pkg_attribute                          | Synthesis attributes specific to fault-tolerant (TMR) designs. |
 
 ### ECC Codec (olo_ft_ecc_\<...\>)
 
@@ -296,8 +299,32 @@ common constraints) are described once in
 | [olo_ft_ecc_encode](./ft/olo_ft_ecc_encode.md)  | SECDED encoder with AXI4-Stream handshake, optional pipeline, and codeword-wide bit-flip injection |
 | [olo_ft_ecc_decode](./ft/olo_ft_ecc_decode.md)  | SECDED decoder with AXI4-Stream handshake and optional distributed pipeline |
 
+### Clock Crossings (olo_ft_cc_\<...\>)
+
+TMR-hardened counterparts of the [olo_base_cc_\<...\>](#clock-crossings-olo_base_cc_) clock crossings. Each chain is
+triplicated with a majority voter to mitigate single-event upsets. They follow the same
+[clock crossing principles](./base/clock_crossing_principles.md) as their base counterparts.
+
+| Entity                                          | Description                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| [olo_ft_cc_reset](./ft/olo_ft_cc_reset.md)      | TMR-hardened synchronization of resets between two clock domains (bi-directional) |
+| [olo_ft_cc_bits](./ft/olo_ft_cc_bits.md)        | TMR-hardened transfer of a group of individual single bit signals from one clock domain to another clock domain |
+| [olo_ft_cc_pulse](./ft/olo_ft_cc_pulse.md)      | TMR-hardened transfer of single-cycle pulses from one clock domain to another clock domain |
+
 ### RAM Implementations (olo_ft_ram_\<...\>)
 
-| Entity                                   | Description                                                  |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| [olo_ft_ram_sp](./ft/olo_ft_ram_sp.md)   | ECC-protected single port RAM                                |
+| Entity                                               | Description                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------ |
+| [olo_ft_ram_sp](./ft/olo_ft_ram_sp.md)               | ECC-protected single port RAM                                |
+| [olo_ft_ram_sdp](./ft/olo_ft_ram_sdp.md)             | ECC-protected simple dual-port RAM                           |
+| [olo_ft_ram_tdp](./ft/olo_ft_ram_tdp.md)             | ECC-protected true dual-port RAM                             |
+| [olo_ft_ram_sp_scrub](./ft/olo_ft_ram_sp_scrub.md)   | ECC-protected single-port RAM with an opportunistic background memory scrubber |
+| [olo_ft_ram_sdp_scrub](./ft/olo_ft_ram_sdp_scrub.md) | ECC-protected simple dual-port RAM with an opportunistic background memory scrubber |
+
+### FIFO Implementations (olo_ft_fifo_\<...\>)
+
+| Entity                                               | Description                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------ |
+| [olo_ft_fifo_sync](./ft/olo_ft_fifo_sync.md)         | ECC-protected synchronous FIFO (single clock)               |
+| [olo_ft_fifo_async](./ft/olo_ft_fifo_async.md)       | ECC-protected asynchronous FIFO (separate write and read clocks) |
+| [olo_ft_fifo_packet](./ft/olo_ft_fifo_packet.md)     | ECC-protected packet FIFO (store and forward) with the ability to drop packets on the write side and skip or repeat packets on the read side |

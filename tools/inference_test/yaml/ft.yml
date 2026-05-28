@@ -14,20 +14,16 @@ entities:
   # ============================================================
   - entity_name: "olo_ft_ecc_encode"
     configurations:
-      - name: "w64-pipe1"
-        generics: { Width_g: 64, Pipeline_g: 1 }
-        in_reduce: { In_Data: 64, ErrInj_BitFlip: 72 }
-        out_reduce: { Out_Codeword: 72 }
+      - name: "w32-pl1"
+        generics: { Width_g: 32, Pipeline_g: 1 }
 
   # ============================================================
   # olo_ft_ecc_decode
   # ============================================================
   - entity_name: "olo_ft_ecc_decode"
     configurations:
-      - name: "w64-pipe2"
-        generics: { Width_g: 64, Pipeline_g: 2 }
-        in_reduce: { In_Codeword: 72, ErrInj_BitFlip: 72 }
-        out_reduce: { Out_Data: 64 }
+      - name: "w32-pl2"
+        generics: { Width_g: 32, Pipeline_g: 2 }
 
   # ============================================================
   # olo_ft_ram_sp
@@ -36,7 +32,101 @@ entities:
     fixed_generics:
       Depth_g: 256
     configurations:
-      - name: "w64-ecc2-lat1"
-        generics: { Width_g: 64, EccPipeline_g: 2, RamRdLatency_g: 1 }
-        in_reduce: { WrData: 64, ErrInj_BitFlip: 72 }
-        out_reduce: { RdData: 64 }
+      - name: "w32-ecc1-lat2"
+        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+
+  # ============================================================
+  # olo_ft_ram_sp_scrub
+  # ============================================================
+  - entity_name: "olo_ft_ram_sp_scrub"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1-lat2"
+        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+
+  # ============================================================
+  # olo_ft_ram_sdp
+  # ============================================================
+  - entity_name: "olo_ft_ram_sdp"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1-lat2"
+        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+
+  # ============================================================
+  # olo_ft_ram_sdp_scrub
+  # ============================================================
+  - entity_name: "olo_ft_ram_sdp_scrub"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1-lat2"
+        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+
+  # ============================================================
+  # olo_ft_ram_tdp  
+  # ============================================================
+  - entity_name: "olo_ft_ram_tdp"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1-lat2"
+        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+        in_reduce: { A_WrData: 32, B_WrData: 32, A_WrEccBitFlip: 39, B_WrEccBitFlip: 39 }
+        out_reduce: { A_RdData: 32, B_RdData: 32 }
+
+  # ============================================================
+  # olo_ft_fifo_sync  
+  # ============================================================
+  - entity_name: "olo_ft_fifo_sync"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1"
+        generics: { Width_g: 32, EccPipeline_g: 1 }
+
+  # ============================================================
+  # olo_ft_fifo_async
+  # ============================================================
+  - entity_name: "olo_ft_fifo_async"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1"
+        generics: { Width_g: 32, EccPipeline_g: 1 }
+
+  # ============================================================
+  # olo_ft_fifo_packet
+  # ============================================================
+  - entity_name: "olo_ft_fifo_packet"
+    fixed_generics:
+      Depth_g: 256
+    configurations:
+      - name: "w32-ecc1"
+        generics: { Width_g: 32, EccPipeline_g: 1 }
+
+  # ============================================================
+  # olo_ft_cc_pulse
+  # ============================================================
+  - entity_name: "olo_ft_cc_pulse"
+    configurations:
+      - name: "n8-s3"
+        generics: { NumPulses_g: 8, SyncStages_g: 3 }
+
+  # ============================================================
+  # olo_ft_cc_bits
+  # ============================================================
+  - entity_name: "olo_ft_cc_bits"
+    configurations:
+      - name: "w8-s2"
+        generics: { Width_g: 8, SyncStages_g: 2 }
+
+  # ============================================================
+  # olo_ft_cc_reset
+  # ============================================================
+  - entity_name: "olo_ft_cc_reset"
+    configurations:
+      - name: "s2"
+        generics: { SyncStages_g: 2 }
