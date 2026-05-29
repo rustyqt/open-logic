@@ -80,14 +80,24 @@ architecture rtl of olo_ft_ram_tdp is
     signal B_WrCodeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal B_RdCodeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
 
-    -- Read-valid signals from the inner RAM, one per port. olo_base_ram_tdp drives these high
-    -- on cycles where the corresponding port did not write (i.e. the codeword on *_RdCodeword
-    -- reflects a pure read). Feeds the matching decode entity's In_Valid directly; the decoder
-    -- absorbs EccPipeline_g cycles internally via its Out_Valid.
+    -- Read-valid signals from the inner RAM, one per port. olo_base_ram_tdp derives RdValid from
+    -- RdEna, and the read-enables are driven from "not WrEna" (see below), so these pulse on every
+    -- cycle the corresponding port did not write (i.e. the codeword on *_RdCodeword reflects a pure
+    -- read). Feeds the matching decode entity's In_Valid directly; the decoder absorbs
+    -- EccPipeline_g cycles internally via its Out_Valid.
     signal A_RamRdValid : std_logic;
     signal B_RamRdValid : std_logic;
 
+    -- Inner-RAM read-enables. olo_base_ram_tdp always reads, but derives RdValid from RdEna; assert
+    -- on non-write cycles so RdValid (and thus In_Valid to the decoder) is high exactly when a read
+    -- result is present. The wrapper has no explicit read-enable: a port reads whenever not writing.
+    signal A_RamRdEna : std_logic;
+    signal B_RamRdEna : std_logic;
+
 begin
+
+    A_RamRdEna <= not A_WrEna;
+    B_RamRdEna <= not B_WrEna;
 
     -----------------------------------------------------------------------------------------------
     -- Port A
@@ -191,12 +201,14 @@ begin
             A_Addr    => A_Addr,
             A_WrEna   => A_WrEna,
             A_WrData  => A_WrCodeword,
+            A_RdEna   => A_RamRdEna,
             A_RdData  => A_RdCodeword,
             A_RdValid => A_RamRdValid,
             B_Clk     => B_Clk,
             B_Addr    => B_Addr,
             B_WrEna   => B_WrEna,
             B_WrData  => B_WrCodeword,
+            B_RdEna   => B_RamRdEna,
             B_RdData  => B_RdCodeword,
             B_RdValid => B_RamRdValid
         );

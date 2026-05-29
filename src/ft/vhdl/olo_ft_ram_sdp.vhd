@@ -130,10 +130,12 @@ begin
         )
         port map (
             Clk      => Clk,
+            Rst      => Rst,
             Wr_Addr  => Wr_Addr,
             Wr_Ena   => Wr_Ena,
             Wr_Data  => Wr_Codeword,
             Rd_Clk   => Rd_Clk,
+            Rd_Rst   => Rd_Rst,
             Rd_Addr  => Rd_Addr,
             Rd_Ena   => Rd_Ena,
             Rd_Data  => Rd_Codeword,
