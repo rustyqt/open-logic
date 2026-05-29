@@ -24,11 +24,11 @@ library olo;
 -- vunit: run_all_in_same_sim
 entity olo_ft_ram_tdp_tb is
     generic (
-        runner_cfg    : string;
-        Width_g       : positive range 5 to 128 := 32;
-        RamBehavior_g : string                  := "RBW";
+        runner_cfg       : string;
+        Width_g          : positive range 5 to 128 := 32;
+        RamBehavior_g    : string                  := "RBW";
         RamRdLatency_g   : positive range 1 to 2   := 1;
-        EccPipeline_g : natural range 0 to 1    := 0
+        EccPipeline_g    : natural range 0 to 1    := 0
     );
 end entity;
 
@@ -159,21 +159,21 @@ architecture sim of olo_ft_ram_tdp_tb is
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal A_Clk           : std_logic                                := '0';
-    signal A_Addr          : std_logic_vector(7 downto 0);
-    signal A_WrEna         : std_logic                                := '0';
+    signal A_Clk            : std_logic                                      := '0';
+    signal A_Addr           : std_logic_vector(7 downto 0);
+    signal A_WrEna          : std_logic                                      := '0';
     signal A_WrData         : std_logic_vector(Width_g - 1 downto 0);
     signal A_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
-    signal A_ErrInj_Valid   : std_logic                                := '0';
+    signal A_ErrInj_Valid   : std_logic                                      := '0';
     signal A_RdData         : std_logic_vector(Width_g - 1 downto 0);
     signal A_RdEccSec       : std_logic;
     signal A_RdEccDed       : std_logic;
-    signal B_Clk            : std_logic                                := '0';
+    signal B_Clk            : std_logic                                      := '0';
     signal B_Addr           : std_logic_vector(7 downto 0);
-    signal B_WrEna          : std_logic                                := '0';
+    signal B_WrEna          : std_logic                                      := '0';
     signal B_WrData         : std_logic_vector(Width_g - 1 downto 0);
     signal B_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
-    signal B_ErrInj_Valid   : std_logic                                := '0';
+    signal B_ErrInj_Valid   : std_logic                                      := '0';
     signal B_RdData         : std_logic_vector(Width_g - 1 downto 0);
     signal B_RdEccSec       : std_logic;
     signal B_RdEccDed       : std_logic;
@@ -185,17 +185,17 @@ begin
     -----------------------------------------------------------------------------------------------
     i_dut : entity olo.olo_ft_ram_tdp
         generic map (
-            Depth_g       => 200,
-            Width_g       => Width_g,
-            RamBehavior_g => RamBehavior_g,
+            Depth_g          => 200,
+            Width_g          => Width_g,
+            RamBehavior_g    => RamBehavior_g,
             RamRdLatency_g   => RamRdLatency_g,
-            EccPipeline_g => EccPipeline_g
+            EccPipeline_g    => EccPipeline_g
         )
         port map (
-            A_Clk          => A_Clk,
-            A_Addr         => A_Addr,
-            A_WrEna        => A_WrEna,
-            A_WrData       => A_WrData,
+            A_Clk            => A_Clk,
+            A_Addr           => A_Addr,
+            A_WrEna          => A_WrEna,
+            A_WrData         => A_WrData,
             A_ErrInj_BitFlip => A_ErrInj_BitFlip,
             A_ErrInj_Valid   => A_ErrInj_Valid,
             A_RdData         => A_RdData,
@@ -327,6 +327,7 @@ begin
 
             -- SEC across every codeword bit position (full bit-by-bit sweep, port A)
             elsif run("SecAllBits") then
+
                 for bitIdx in 0 to CodewordWidth_c - 1 loop
                     writeWithFlip(bitIdx, 16#A5#, singleBit(bitIdx),
                                   A_Clk, A_Addr, A_WrData, A_WrEna, A_ErrInj_BitFlip, A_ErrInj_Valid);

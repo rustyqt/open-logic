@@ -61,23 +61,23 @@ architecture sim of olo_ft_fifo_packet_tb is
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal Clk               : std_logic                                       := '0';
-    signal Rst               : std_logic                                       := '1';
+    signal Clk               : std_logic                                      := '0';
+    signal Rst               : std_logic                                      := '1';
     signal In_Valid          : std_logic;
     signal In_Ready          : std_logic;
     signal In_Data           : std_logic_vector(Width_g - 1 downto 0);
     signal In_Last           : std_logic;
-    signal In_Drop           : std_logic                                       := '0';
+    signal In_Drop           : std_logic                                      := '0';
     signal In_IsDropped      : std_logic;
-    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0)  := (others => '0');
-    signal In_ErrInj_Valid   : std_logic                                       := '0';
+    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
+    signal In_ErrInj_Valid   : std_logic                                      := '0';
     signal Out_Valid         : std_logic;
     signal Out_Ready         : std_logic;
     signal Out_Data          : std_logic_vector(Width_g - 1 downto 0);
     signal Out_Size          : std_logic_vector(log2ceil(Depth_c + 1) - 1 downto 0);
     signal Out_Last          : std_logic;
-    signal Out_Next          : std_logic                                       := '0';
-    signal Out_Repeat        : std_logic                                       := '0';
+    signal Out_Next          : std_logic                                      := '0';
+    signal Out_Repeat        : std_logic                                      := '0';
     signal Out_EccSec        : std_logic;
     signal Out_EccDed        : std_logic;
     signal Out_TUser         : std_logic_vector(1 downto 0);
@@ -91,16 +91,17 @@ architecture sim of olo_ft_fifo_packet_tb is
     -- bit set, the codec's injection latch is loaded via a one-cycle ErrInj_Valid pulse before
     -- the push, so exactly the next handshake applies the pattern (and the latch self-clears).
     procedure pushBeat (
-        signal   net          : inout network_t;
-        signal   clk_sig      : in    std_logic;
-        signal   injBitFlip   : out   std_logic_vector;
-        signal   injValid     : out   std_logic;
-        constant Data_v       : in    std_logic_vector;
-        constant FlipBits     : in    std_logic_vector;
-        constant Last_b       : in    boolean) is
+        signal   net        : inout network_t;
+        signal   clk_sig    : in    std_logic;
+        signal   injBitFlip : out   std_logic_vector;
+        signal   injValid   : out   std_logic;
+        constant Data_v     : in    std_logic_vector;
+        constant FlipBits   : in    std_logic_vector;
+        constant Last_b     : in    boolean) is
         variable Inject_v : boolean   := false;
         variable Last_v   : std_logic := '0';
     begin
+
         for i in FlipBits'range loop
             if FlipBits(i) = '1' then
                 Inject_v := true;
@@ -144,16 +145,16 @@ architecture sim of olo_ft_fifo_packet_tb is
         variable ExpTUser_v : std_logic_vector(1 downto 0);
         variable ExpLast_v  : std_logic := '0';
     begin
-        Codeword_v  := eccEncode(Data_v) xor FlipBits;
-        SynPar_v    := eccSyndromeAndParity(Codeword_v, Width_g);
-        ExpData_v   := eccCorrectData(Codeword_v, SynPar_v, Width_g);
-        ExpTUser_v  := eccSecError(SynPar_v) & eccDedError(SynPar_v);
+        Codeword_v := eccEncode(Data_v) xor FlipBits;
+        SynPar_v   := eccSyndromeAndParity(Codeword_v, Width_g);
+        ExpData_v  := eccCorrectData(Codeword_v, SynPar_v, Width_g);
+        ExpTUser_v := eccSecError(SynPar_v) & eccDedError(SynPar_v);
         if Last_b then
             ExpLast_v := '1';
         end if;
 
         check_axi_stream(net, AxisSlave_c, ExpData_v, tlast => ExpLast_v, tuser => ExpTUser_v,
-            msg => Msg_c, blocking => false);
+            msg                                             => Msg_c, blocking => false);
     end procedure;
 
 begin
@@ -175,10 +176,10 @@ begin
             In_ErrInj_Valid   <= '0';
             In_Drop           <= '0';
             wait until rising_edge(Clk);
-            Rst <= '1';
+            Rst               <= '1';
             wait for 200 ns;
             wait until rising_edge(Clk);
-            Rst <= '0';
+            Rst               <= '0';
             wait until rising_edge(Clk);
 
             ---------------------------------------------------------------------------------------
@@ -212,6 +213,7 @@ begin
 
             ---------------------------------------------------------------------------------------
             elsif run("SecAllBits") then
+
                 -- Every codeword bit position, one-word packets.
                 for bitIdx in 0 to CodewordWidth_c - 1 loop
                     Flip_v := setBits(bitIdx, CodewordWidth_c);
@@ -228,10 +230,10 @@ begin
                 for pair in 0 to 4 loop
 
                     case pair is
-                        when 0      => Flip_v := setBits((0, 1),                              CodewordWidth_c);
-                        when 1      => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
-                        when 2      => Flip_v := setBits((1, 2),                              CodewordWidth_c);
-                        when 3      => Flip_v := setBits((2, 5),                              CodewordWidth_c);
+                        when 0 => Flip_v := setBits((0, 1),                              CodewordWidth_c);
+                        when 1 => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
+                        when 2 => Flip_v := setBits((1, 2),                              CodewordWidth_c);
+                        when 3 => Flip_v := setBits((2, 5),                              CodewordWidth_c);
                         when others => Flip_v := setBits((CodewordWidth_c / 2,
                                                           CodewordWidth_c / 2 + 1), CodewordWidth_c);
                     end case;

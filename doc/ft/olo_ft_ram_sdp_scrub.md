@@ -106,7 +106,7 @@ These ports drive the internal [olo_ft_ecc_encode](./olo_ft_ecc_encode.md) insta
 
 The wrapper composes two existing blocks plus a thin mux layer:
 
-```
+```text
        user                                       scrubber
    Wr_*/Rd_*/ErrInj_*                              status
             |                                        ^
@@ -133,7 +133,7 @@ The wrapper composes two existing blocks plus a thin mux layer:
 - **Free-running.** No rate-limit generic. The scrubber advances as fast as user-idle cycles allow.
 - **Independent ports.** Because the underlying RAM has separate write and read ports, the scrubber's read can
   proceed concurrently with a user write (and vice versa). The scrubber only stalls on cycles where the user is
-  using the *same* port.
+  using the _same_ port.
 - **User-write-wins hazard policy.** If the user writes to the address currently being scrubbed at any cycle between
   the scrubber's read-issue and its writeback, the scrubber aborts the writeback (sticky internal `Collision`
   flag). User data is always authoritative.

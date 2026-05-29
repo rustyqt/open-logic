@@ -65,7 +65,7 @@ space or high-energy physics environments.
 
 ### Architecture
 
-```
+```text
 Write path:  WrData -> eccEncode -> XOR bit-flip injection -> wider internal RAM
 Read path:   wider internal RAM -> eccSyndromeAndParity -> eccCorrectData + EccSec/EccDed -> [optional ECC pipeline]
 
@@ -93,7 +93,7 @@ The SECDED Hamming code adds parity bits to each stored word:
 
 ### Error Injection
 
-The _A_ErrInj_BitFlip_ and _B_ErrInj_BitFlip_ ports allow arbitrary bit-flip patterns to be XORed into the stored codeword
+The _A_ErrInj_BitFlip_ and _B_ErrInj_BitFlip_ ports XOR arbitrary bit-flip patterns into the stored codeword
 on each write. This is useful for testing the ECC mechanism in simulation and for built-in self-test (BIST) in
 hardware. Each port is the full codeword width (_eccCodewordWidth(Width_g)_), so any bit position can be exercised -
 which is needed to fully verify the SECDED codec.

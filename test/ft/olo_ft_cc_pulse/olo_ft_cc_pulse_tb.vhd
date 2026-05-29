@@ -61,7 +61,7 @@ architecture sim of olo_ft_cc_pulse_tb is
     -- Helpers
     -----------------------------------------------------------------------------------------------
     -- Send a single-cycle pulse on bit <bit_idx> of In_Pulse
-    procedure send_pulse (
+    procedure sendPulse (
         constant bit_idx : in    natural;
         signal   Clk     : in    std_logic;
         signal   Data    : out   std_logic_vector) is
@@ -73,7 +73,7 @@ architecture sim of olo_ft_cc_pulse_tb is
     end procedure;
 
     -- Wait for a pulse on bit <bit_idx> of Out_Pulse, with timeout in Out_Clk cycles
-    procedure wait_for_pulse (
+    procedure waitForPulse (
         constant bit_idx : in    natural;
         constant timeout : in    natural;
         signal   Clk     : in    std_logic;
@@ -81,6 +81,7 @@ architecture sim of olo_ft_cc_pulse_tb is
         variable success : out   boolean) is
     begin
         success := false;
+
         for i in 0 to timeout - 1 loop
             wait until rising_edge(Clk);
             if Data(bit_idx) = '1' then
@@ -88,10 +89,11 @@ architecture sim of olo_ft_cc_pulse_tb is
                 exit;
             end if;
         end loop;
+
     end procedure;
 
     -- Count consecutive cycles the bit stays high (pulse width measurement)
-    procedure count_high_cycles (
+    procedure countHighCycles (
         constant bit_idx : in    natural;
         constant max     : in    natural;
         signal   Clk     : in    std_logic;
@@ -99,6 +101,7 @@ architecture sim of olo_ft_cc_pulse_tb is
         variable cycles  : out   natural) is
     begin
         cycles := 0;
+
         for i in 0 to max - 1 loop
             if Data(bit_idx) = '1' then
                 cycles := cycles + 1;
@@ -107,6 +110,7 @@ architecture sim of olo_ft_cc_pulse_tb is
                 exit;
             end if;
         end loop;
+
     end procedure;
 
 begin
@@ -142,8 +146,8 @@ begin
     test_runner_watchdog(runner, 1 ms);
 
     p_control : process is
-        variable success_v : boolean;
-        variable cycles_v  : natural;
+        variable Success_v : boolean;
+        variable Cycles_v  : natural;
     begin
         test_runner_setup(runner, runner_cfg);
 
@@ -155,12 +159,13 @@ begin
             In_Pulse  <= (others => '0');
             wait for 200 ns;
             wait until rising_edge(In_Clk);
-            In_RstIn <= '0';
+            In_RstIn  <= '0';
             wait until rising_edge(Out_Clk);
             Out_RstIn <= '0';
             -- Wait for resets to de-assert
             wait until In_RstOut = '0' and rising_edge(In_Clk);
             wait until Out_RstOut = '0' and rising_edge(Out_Clk);
+
             for i in 1 to 10 loop
                 wait until rising_edge(Out_Clk);
             end loop;
@@ -171,20 +176,21 @@ begin
 
             if run("SinglePulse") then
                 -- Send a single pulse on bit 0 and verify it arrives
-                send_pulse(0, In_Clk, In_Pulse);
-                wait_for_pulse(0, 30, Out_Clk, Out_Pulse, success_v);
-                check(success_v, "Output pulse did not arrive within 30 cycles");
-                count_high_cycles(0, 10, Out_Clk, Out_Pulse, cycles_v);
-                check_equal(cycles_v, ExpectedOutPulse_c, "Output pulse width");
+                sendPulse(0, In_Clk, In_Pulse);
+                waitForPulse(0, 30, Out_Clk, Out_Pulse, Success_v);
+                check(Success_v, "Output pulse did not arrive within 30 cycles");
+                countHighCycles(0, 10, Out_Clk, Out_Pulse, Cycles_v);
+                check_equal(Cycles_v, ExpectedOutPulse_c, "Output pulse width");
 
             elsif run("MultipleBitsIndependent") then
                 -- Pulse on bit 1, verify other bits stay low
-                send_pulse(1, In_Clk, In_Pulse);
-                wait_for_pulse(1, 30, Out_Clk, Out_Pulse, success_v);
-                check(success_v, "Output pulse on bit 1 did not arrive");
+                sendPulse(1, In_Clk, In_Pulse);
+                waitForPulse(1, 30, Out_Clk, Out_Pulse, Success_v);
+                check(Success_v, "Output pulse on bit 1 did not arrive");
                 check_equal(Out_Pulse(0), '0', "Bit 0 should not be pulsed");
                 check_equal(Out_Pulse(2), '0', "Bit 2 should not be pulsed");
                 check_equal(Out_Pulse(3), '0', "Bit 3 should not be pulsed");
+
                 for i in 1 to 20 loop
                     wait until rising_edge(Out_Clk);
                     exit when Out_Pulse(1) = '0';
@@ -192,24 +198,28 @@ begin
 
             elsif run("BackToBackPulses") then
                 -- Send two pulses with enough spacing
-                send_pulse(0, In_Clk, In_Pulse);
-                wait_for_pulse(0, 30, Out_Clk, Out_Pulse, success_v);
-                check(success_v, "First pulse did not arrive");
+                sendPulse(0, In_Clk, In_Pulse);
+                waitForPulse(0, 30, Out_Clk, Out_Pulse, Success_v);
+                check(Success_v, "First pulse did not arrive");
+
                 for i in 1 to 30 loop
                     wait until rising_edge(Out_Clk);
                     exit when Out_Pulse(0) = '0';
                 end loop;
+
                 -- Additional settling time in both domains
                 for i in 1 to 10 loop
                     wait until rising_edge(Out_Clk);
                 end loop;
+
                 for i in 1 to 10 loop
                     wait until rising_edge(In_Clk);
                 end loop;
+
                 -- Send the second pulse
-                send_pulse(0, In_Clk, In_Pulse);
-                wait_for_pulse(0, 30, Out_Clk, Out_Pulse, success_v);
-                check(success_v, "Second pulse did not arrive");
+                sendPulse(0, In_Clk, In_Pulse);
+                waitForPulse(0, 30, Out_Clk, Out_Pulse, Success_v);
+                check(Success_v, "Second pulse did not arrive");
 
             elsif run("AllBitsSimultaneous") then
                 -- Pulse all bits at the same cycle
@@ -217,13 +227,16 @@ begin
                 In_Pulse <= (others => '1');
                 wait until rising_edge(In_Clk);
                 In_Pulse <= (others => '0');
+
                 -- Wait for the combined pulse to arrive
                 for i in 0 to 29 loop
                     wait until rising_edge(Out_Clk);
                     exit when Out_Pulse /= std_logic_vector'(NumPulses_c - 1 downto 0 => '0');
                 end loop;
+
                 check_equal(Out_Pulse, std_logic_vector'(NumPulses_c - 1 downto 0 => '1'),
                             "All bits should pulse simultaneously");
+
                 -- Wait for output to go back to 0
                 for i in 1 to 30 loop
                     wait until rising_edge(Out_Clk);

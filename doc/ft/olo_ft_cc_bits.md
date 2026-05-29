@@ -45,7 +45,7 @@ Gray-coded FIFO pointers, etc.) in radiation-hardened designs. For pulse-based C
 For each bit, the design triplicates the standard synchronizer chain and combines the outputs
 with a majority voter:
 
-```
+```text
 In_Data[i] --+--> RegIn_A --> Reg0_A --> RegN_A(..) --.
              |                                         \
              +--> RegIn_B --> Reg0_B --> RegN_B(..) ----+--> Voter --> Out_Data[i]

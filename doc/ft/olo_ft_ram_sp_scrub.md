@@ -100,7 +100,7 @@ These ports drive the internal [olo_ft_ecc_encode](./olo_ft_ecc_encode.md) insta
 
 The wrapper composes two existing blocks plus a thin mux layer:
 
-```
+```text
        user                                       scrubber
   Addr/WrEna/WrData/RdEna/ErrInj_*                 status
             |                                        ^

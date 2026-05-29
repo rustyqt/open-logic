@@ -239,6 +239,7 @@ begin
 
         p_latch : process (all) is
         begin
+
             for b in 0 to NumPulses_g - 1 loop
                 if RstInI = '1' then
                     LatchOut(i)(b) <= '0';
@@ -248,6 +249,7 @@ begin
                     LatchOut(i)(b) <= '0';
                 end if;
             end loop;
+
         end process;
 
     end generate;

@@ -61,17 +61,17 @@ architecture sim of olo_ft_fifo_async_tb is
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal In_Clk            : std_logic                                       := '0';
-    signal In_Rst            : std_logic                                       := '1';
+    signal In_Clk            : std_logic                                      := '0';
+    signal In_Rst            : std_logic                                      := '1';
     signal In_RstOut         : std_logic;
     signal In_Data           : std_logic_vector(Width_g - 1 downto 0);
     signal In_Valid          : std_logic;
     signal In_Ready          : std_logic;
-    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0)  := (others => '0');
-    signal In_ErrInj_Valid   : std_logic                                       := '0';
+    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
+    signal In_ErrInj_Valid   : std_logic                                      := '0';
     signal In_Level          : std_logic_vector(log2ceil(Depth_c + 1) - 1 downto 0);
-    signal Out_Clk           : std_logic                                       := '0';
-    signal Out_Rst           : std_logic                                       := '0';
+    signal Out_Clk           : std_logic                                      := '0';
+    signal Out_Rst           : std_logic                                      := '0';
     signal Out_RstOut        : std_logic;
     signal Out_Data          : std_logic_vector(Width_g - 1 downto 0);
     signal Out_Valid         : std_logic;
@@ -85,14 +85,15 @@ architecture sim of olo_ft_fifo_async_tb is
     -- Helpers
     -----------------------------------------------------------------------------------------------
     procedure pushBeat (
-        signal   net          : inout network_t;
-        signal   clk_sig      : in    std_logic;
-        signal   injBitFlip   : out   std_logic_vector;
-        signal   injValid     : out   std_logic;
-        constant Data_v       : in    std_logic_vector;
-        constant FlipBits     : in    std_logic_vector) is
+        signal   net        : inout network_t;
+        signal   clk_sig    : in    std_logic;
+        signal   injBitFlip : out   std_logic_vector;
+        signal   injValid   : out   std_logic;
+        constant Data_v     : in    std_logic_vector;
+        constant FlipBits   : in    std_logic_vector) is
         variable Inject_v : boolean := false;
     begin
+
         for i in FlipBits'range loop
             if FlipBits(i) = '1' then
                 Inject_v := true;
@@ -126,13 +127,13 @@ architecture sim of olo_ft_fifo_async_tb is
         variable ExpData_v  : std_logic_vector(Width_g - 1 downto 0);
         variable ExpTUser_v : std_logic_vector(1 downto 0);
     begin
-        Codeword_v  := eccEncode(Data_v) xor FlipBits;
-        SynPar_v    := eccSyndromeAndParity(Codeword_v, Width_g);
-        ExpData_v   := eccCorrectData(Codeword_v, SynPar_v, Width_g);
-        ExpTUser_v  := eccSecError(SynPar_v) & eccDedError(SynPar_v);
+        Codeword_v := eccEncode(Data_v) xor FlipBits;
+        SynPar_v   := eccSyndromeAndParity(Codeword_v, Width_g);
+        ExpData_v  := eccCorrectData(Codeword_v, SynPar_v, Width_g);
+        ExpTUser_v := eccSecError(SynPar_v) & eccDedError(SynPar_v);
 
         check_axi_stream(net, AxisSlave_c, ExpData_v, tuser => ExpTUser_v,
-            msg => Msg_c, blocking => false);
+            msg                                             => Msg_c, blocking => false);
     end procedure;
 
 begin
@@ -152,13 +153,13 @@ begin
             In_ErrInj_BitFlip <= (others => '0');
             In_ErrInj_Valid   <= '0';
             wait until rising_edge(In_Clk);
-            In_Rst  <= '1';
-            Out_Rst <= '1';
+            In_Rst            <= '1';
+            Out_Rst           <= '1';
             wait for 1 us;
             wait until rising_edge(In_Clk);
-            In_Rst <= '0';
+            In_Rst            <= '0';
             wait until rising_edge(Out_Clk);
-            Out_Rst <= '0';
+            Out_Rst           <= '0';
             wait for 1 us;
             wait until rising_edge(In_Clk);
 
@@ -188,12 +189,14 @@ begin
             elsif run("BackToBack") then
                 -- 64 beats (2x depth) across the clock-domain crossing under stalls
                 Flip_v := (others => '0');
+
                 for i in 0 to 63 loop
                     push_axi_stream(net, AxisMaster_c, toUslv(i + 1, Width_g));
                 end loop;
+
                 for i in 0 to 63 loop
                     check_axi_stream(net, AxisSlave_c, toUslv(i + 1, Width_g), tuser => "00",
-                        msg => "BackToBack " & integer'image(i), blocking => false);
+                        msg                                                          => "BackToBack " & integer'image(i), blocking => false);
                 end loop;
 
             ---------------------------------------------------------------------------------------
@@ -214,10 +217,10 @@ begin
                 for pair in 0 to 4 loop
 
                     case pair is
-                        when 0      => Flip_v := setBits((0, 1),                              CodewordWidth_c);
-                        when 1      => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
-                        when 2      => Flip_v := setBits((1, 2),                              CodewordWidth_c);
-                        when 3      => Flip_v := setBits((2, 5),                              CodewordWidth_c);
+                        when 0 => Flip_v := setBits((0, 1),                              CodewordWidth_c);
+                        when 1 => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
+                        when 2 => Flip_v := setBits((1, 2),                              CodewordWidth_c);
+                        when 3 => Flip_v := setBits((2, 5),                              CodewordWidth_c);
                         when others => Flip_v := setBits((CodewordWidth_c / 2,
                                                           CodewordWidth_c / 2 + 1), CodewordWidth_c);
                     end case;

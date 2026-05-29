@@ -61,14 +61,14 @@ architecture sim of olo_ft_fifo_sync_tb is
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal Clk               : std_logic                                       := '0';
-    signal Rst               : std_logic                                       := '1';
+    signal Clk               : std_logic                                      := '0';
+    signal Rst               : std_logic                                      := '1';
     signal In_Data           : std_logic_vector(Width_g - 1 downto 0);
     signal In_Valid          : std_logic;
     signal In_Ready          : std_logic;
     signal In_Level          : std_logic_vector(log2ceil(Depth_c + 1) - 1 downto 0);
-    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0)  := (others => '0');
-    signal In_ErrInj_Valid   : std_logic                                       := '0';
+    signal In_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
+    signal In_ErrInj_Valid   : std_logic                                      := '0';
     signal Out_Data          : std_logic_vector(Width_g - 1 downto 0);
     signal Out_Valid         : std_logic;
     signal Out_Ready         : std_logic;
@@ -91,14 +91,15 @@ architecture sim of olo_ft_fifo_sync_tb is
     -- after wait_until_idle, the latch would still hold FlipBits when the *next* (clean) beat
     -- fires its handshake, corrupting it. The pulse ensures the latch is armed exactly once.
     procedure pushBeat (
-        signal   net          : inout network_t;
-        signal   clk_sig      : in    std_logic;
-        signal   injBitFlip   : out   std_logic_vector;
-        signal   injValid     : out   std_logic;
-        constant Data_v       : in    std_logic_vector;
-        constant FlipBits     : in    std_logic_vector) is
+        signal   net        : inout network_t;
+        signal   clk_sig    : in    std_logic;
+        signal   injBitFlip : out   std_logic_vector;
+        signal   injValid   : out   std_logic;
+        constant Data_v     : in    std_logic_vector;
+        constant FlipBits   : in    std_logic_vector) is
         variable Inject_v : boolean := false;
     begin
+
         for i in FlipBits'range loop
             if FlipBits(i) = '1' then
                 Inject_v := true;
@@ -139,13 +140,13 @@ architecture sim of olo_ft_fifo_sync_tb is
         variable ExpData_v  : std_logic_vector(Width_g - 1 downto 0);
         variable ExpTUser_v : std_logic_vector(1 downto 0);
     begin
-        Codeword_v  := eccEncode(Data_v) xor FlipBits;
-        SynPar_v    := eccSyndromeAndParity(Codeword_v, Width_g);
-        ExpData_v   := eccCorrectData(Codeword_v, SynPar_v, Width_g);
-        ExpTUser_v  := eccSecError(SynPar_v) & eccDedError(SynPar_v);
+        Codeword_v := eccEncode(Data_v) xor FlipBits;
+        SynPar_v   := eccSyndromeAndParity(Codeword_v, Width_g);
+        ExpData_v  := eccCorrectData(Codeword_v, SynPar_v, Width_g);
+        ExpTUser_v := eccSecError(SynPar_v) & eccDedError(SynPar_v);
 
         check_axi_stream(net, AxisSlave_c, ExpData_v, tuser => ExpTUser_v,
-            msg => Msg_c, blocking => false);
+            msg                                             => Msg_c, blocking => false);
     end procedure;
 
 begin
@@ -166,10 +167,10 @@ begin
             In_ErrInj_BitFlip <= (others => '0');
             In_ErrInj_Valid   <= '0';
             wait until rising_edge(Clk);
-            Rst <= '1';
+            Rst               <= '1';
             wait for 200 ns;
             wait until rising_edge(Clk);
-            Rst <= '0';
+            Rst               <= '0';
             wait until rising_edge(Clk);
 
             ---------------------------------------------------------------------------------------
@@ -213,24 +214,28 @@ begin
                 -- Push Depth_c clean beats; the FIFO must accept all of them (master's In_Ready
                 -- handshake handles back-pressure when the FIFO fills). Drain afterwards.
                 Flip_v := (others => '0');
+
                 for i in 0 to Depth_c - 1 loop
                     push_axi_stream(net, AxisMaster_c, toUslv(i, Width_g));
                 end loop;
+
                 for i in 0 to Depth_c - 1 loop
                     check_axi_stream(net, AxisSlave_c, toUslv(i, Width_g), tuser => "00",
-                        msg => "FullEmpty drain " & integer'image(i), blocking => false);
+                        msg                                                      => "FullEmpty drain " & integer'image(i), blocking => false);
                 end loop;
 
             ---------------------------------------------------------------------------------------
             elsif run("BackToBack") then
                 -- Push 64 beats (2x depth) - exercises sustained throughput under back-pressure.
                 Flip_v := (others => '0');
+
                 for i in 0 to 63 loop
                     push_axi_stream(net, AxisMaster_c, toUslv(i + 1, Width_g));
                 end loop;
+
                 for i in 0 to 63 loop
                     check_axi_stream(net, AxisSlave_c, toUslv(i + 1, Width_g), tuser => "00",
-                        msg => "BackToBack " & integer'image(i), blocking => false);
+                        msg                                                          => "BackToBack " & integer'image(i), blocking => false);
                 end loop;
 
             ---------------------------------------------------------------------------------------
@@ -250,10 +255,10 @@ begin
                 for pair in 0 to 4 loop
 
                     case pair is
-                        when 0      => Flip_v := setBits((0, 1),                              CodewordWidth_c);
-                        when 1      => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
-                        when 2      => Flip_v := setBits((1, 2),                              CodewordWidth_c);
-                        when 3      => Flip_v := setBits((2, 5),                              CodewordWidth_c);
+                        when 0 => Flip_v := setBits((0, 1),                              CodewordWidth_c);
+                        when 1 => Flip_v := setBits((0, CodewordWidth_c - 1),            CodewordWidth_c);
+                        when 2 => Flip_v := setBits((1, 2),                              CodewordWidth_c);
+                        when 3 => Flip_v := setBits((2, 5),                              CodewordWidth_c);
                         when others => Flip_v := setBits((CodewordWidth_c / 2,
                                                           CodewordWidth_c / 2 + 1), CodewordWidth_c);
                     end case;

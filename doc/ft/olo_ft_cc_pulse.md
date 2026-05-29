@@ -48,11 +48,11 @@ Per pulse channel, the design instantiates three independent copies (A, B, C) of
 synchronizer, with a per-bit 2-of-3 majority voter at the output. The internal topology of each
 copy is:
 
-```
-                              ┌───────── feedback ─────────┐
-                              │                             │
-In_Pulse[i] --> [S   Q]-- latch_out --> [D FF1 Q]-- ff1_out --(AND ~fb)-- ff2_in --> [D FF2 Q]-- ff3_in --> [D FF3 Q]-- rcvSig
-                [R    ]<─────────────────────────────────────────────────────────────────────────────────────────────────┘
+```text
+                        ┌──────────────── fb ───────────────┐
+                        │                                    │
+In_Pulse ─> [S  Q] ─> [D FF1 Q] ─(AND ~fb)─> [D FF2 Q] ─> [D FF3 Q] ─┬─> rcvSig
+            [R   ] <─────────────────────────────────────────────────┘
 ```
 
 The SR latch (one per TMR copy, per bit) is a level-sensitive latch that converts the input
@@ -85,9 +85,11 @@ The user must respect these constraints:
 
 2. **Maximum clock ratio**: for the handshake to work correctly, the feedback round-trip time
    must exceed the input pulse duration. Approximately:
-   ```
+
+   ```text
    f_out < SyncStages_g × f_in
    ```
+
    For `SyncStages_g = 3` and a single-cycle input pulse, this means `f_out < 3 × f_in`.
    Exceeding this ratio causes the feedback to return while the input pulse is still high,
    creating an S/R conflict in the SR latch. If you need a larger clock ratio, increase

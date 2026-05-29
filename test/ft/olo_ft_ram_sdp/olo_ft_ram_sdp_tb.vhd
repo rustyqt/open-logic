@@ -165,23 +165,23 @@ architecture sim of olo_ft_ram_sdp_tb is
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal Clk            : std_logic                                          := '0';
-    signal Rst            : std_logic                                          := '0';
+    signal Clk            : std_logic := '0';
+    signal Rst            : std_logic := '0';
     -- Write port
-    signal Wr_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0)   := (others => '0');
-    signal Wr_Ena         : std_logic                                          := '0';
-    signal Wr_Data        : std_logic_vector(Width_g - 1 downto 0)             := (others => '0');
+    signal Wr_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
+    signal Wr_Ena         : std_logic                                        := '0';
+    signal Wr_Data        : std_logic_vector(Width_g - 1 downto 0)           := (others => '0');
     -- Read port
-    signal Rd_Clk         : std_logic                                          := '0';
-    signal Rd_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0)   := (others => '0');
-    signal Rd_Ena         : std_logic                                          := '0';
+    signal Rd_Clk         : std_logic                                        := '0';
+    signal Rd_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
+    signal Rd_Ena         : std_logic                                        := '0';
     signal Rd_Data        : std_logic_vector(Width_g - 1 downto 0);
     signal Rd_Valid       : std_logic;
     signal Rd_EccSec      : std_logic;
     signal Rd_EccDed      : std_logic;
     -- Error injection
-    signal ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0)     := (others => '0');
-    signal ErrInj_Valid   : std_logic                                          := '0';
+    signal ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
+    signal ErrInj_Valid   : std_logic                                      := '0';
 
 begin
 

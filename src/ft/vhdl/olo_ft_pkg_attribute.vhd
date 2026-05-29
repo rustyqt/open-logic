@@ -33,10 +33,10 @@ package olo_ft_pkg_attribute is
     -- Apply "none" at architecture level when a custom TMR implementation is already in place
     -- to prevent the tool from triplicating already-triplicated registers.
     attribute syn_radhardlevel : string;
-    constant SynRadhardlevel_None_c   : string := "none";
-    constant SynRadhardlevel_Cc_c     : string := "cc";
-    constant SynRadhardlevel_Tmr_c    : string := "tmr";
-    constant SynRadhardlevel_TmrCc_c  : string := "tmr_cc";
+    constant SynRadhardlevel_None_c  : string := "none";
+    constant SynRadhardlevel_Cc_c    : string := "cc";
+    constant SynRadhardlevel_Tmr_c   : string := "tmr";
+    constant SynRadhardlevel_TmrCc_c : string := "tmr_cc";
 
 end package;
 
