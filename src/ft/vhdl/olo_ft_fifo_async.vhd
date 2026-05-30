@@ -6,10 +6,14 @@
 ---------------------------------------------------------------------------------------------------
 -- Description
 ---------------------------------------------------------------------------------------------------
--- ECC-protected asynchronous FIFO using SECDED (Single Error Correction,
--- Double Error Detection) Hamming code. Wraps olo_base_fifo_async with a wider
--- internal word to store parity bits alongside data. The ECC is transparent
--- to the user: data is encoded on write and decoded/corrected on read.
+-- ECC-protected asynchronous FIFO using SECDED (Single Error Correction, Double Error
+-- Detection) Hamming code. Data is encoded on write and decoded/corrected on read, so the
+-- codeword is protected end-to-end through the FIFO.
+--
+-- This entity is a peer of olo_base_fifo_async: it reuses the shared control core
+-- olo_private_fifo_async_core, but supplies TMR-hardened CDC primitives (olo_ft_cc_bits /
+-- olo_ft_cc_reset) for the Gray-pointer and reset crossings, making the pointer crossings
+-- single-SEU immune. The storage is a plain olo_base_ram_sdp holding the codeword.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_fifo_async.md
@@ -85,22 +89,37 @@ end entity;
 architecture rtl of olo_ft_fifo_async is
 
     constant CodewordWidth_c : positive := eccCodewordWidth(Width_g);
+    constant AddrWidth_c     : positive := log2ceil(Depth_g) + 1;
+    constant RamAddrWidth_c  : positive := log2ceil(Depth_g);
 
-    -- Encoder ⇄ FIFO (input clock domain)
+    -- Encoder <-> core (input clock domain)
     signal EncOut_Codeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal EncOut_Valid    : std_logic;
     signal EncOut_Ready    : std_logic;
 
-    -- FIFO ⇄ decoder (output clock domain)
+    -- Cross-synced resets (from the TMR reset crossing)
+    signal RstInInt  : std_logic;
+    signal RstOutInt : std_logic;
+
+    -- Core <-> RAM
+    signal RamWrAddr : std_logic_vector(RamAddrWidth_c - 1 downto 0);
+    signal RamWrEna  : std_logic;
+    signal RamWrData : std_logic_vector(CodewordWidth_c - 1 downto 0);
+    signal RamRdAddr : std_logic_vector(RamAddrWidth_c - 1 downto 0);
+    signal RamRdData : std_logic_vector(CodewordWidth_c - 1 downto 0);
+
+    -- Core <-> TMR CDC (Gray pointers)
+    signal WrGrayOut : std_logic_vector(AddrWidth_c - 1 downto 0);
+    signal WrGrayIn  : std_logic_vector(AddrWidth_c - 1 downto 0);
+    signal RdGrayOut : std_logic_vector(AddrWidth_c - 1 downto 0);
+    signal RdGrayIn  : std_logic_vector(AddrWidth_c - 1 downto 0);
+
+    -- Core <-> decoder (output clock domain)
     signal FifoOut_Codeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal FifoOut_Valid    : std_logic;
     signal FifoOut_Ready    : std_logic;
-    signal Fifo_OutRst      : std_logic;
 
 begin
-
-    -- Forward output reset to user
-    Out_RstOut <= Fifo_OutRst;
 
     -- Encoder (input clock domain). Codec owns the injection latch.
     i_enc : entity work.olo_ft_ecc_encode
@@ -122,8 +141,8 @@ begin
             ErrInj_Valid   => In_ErrInj_Valid
         );
 
-    -- Base async FIFO with codeword-wide word
-    i_fifo : entity work.olo_base_fifo_async
+    -- Shared FIFO control core (stores the codeword)
+    i_core : entity work.olo_private_fifo_async_core
         generic map (
             Width_g         => CodewordWidth_c,
             Depth_g         => Depth_g,
@@ -131,17 +150,12 @@ begin
             AlmFullLevel_g  => AlmFullLevel_g,
             AlmEmptyOn_g    => AlmEmptyOn_g,
             AlmEmptyLevel_g => AlmEmptyLevel_g,
-            RamStyle_g      => RamStyle_g,
-            RamBehavior_g   => RamBehavior_g,
             ReadyRstState_g => ReadyRstState_g,
-            Optimization_g  => Optimization_g,
-            SyncStages_g    => SyncStages_g,
-            FaultTolerant_g => true
+            Optimization_g  => Optimization_g
         )
         port map (
             In_Clk       => In_Clk,
-            In_Rst       => In_Rst,
-            In_RstOut    => In_RstOut,
+            In_RstSync   => RstInInt,
             In_Data      => EncOut_Codeword,
             In_Valid     => EncOut_Valid,
             In_Ready     => EncOut_Ready,
@@ -151,8 +165,7 @@ begin
             In_AlmEmpty  => In_AlmEmpty,
             In_Level     => In_Level,
             Out_Clk      => Out_Clk,
-            Out_Rst      => Out_Rst,
-            Out_RstOut   => Fifo_OutRst,
+            Out_RstSync  => RstOutInt,
             Out_Data     => FifoOut_Codeword,
             Out_Valid    => FifoOut_Valid,
             Out_Ready    => FifoOut_Ready,
@@ -160,11 +173,83 @@ begin
             Out_Empty    => Out_Empty,
             Out_AlmFull  => Out_AlmFull,
             Out_AlmEmpty => Out_AlmEmpty,
-            Out_Level    => Out_Level
+            Out_Level    => Out_Level,
+            Ram_Wr_Addr  => RamWrAddr,
+            Ram_Wr_Ena   => RamWrEna,
+            Ram_Wr_Data  => RamWrData,
+            Ram_Rd_Addr  => RamRdAddr,
+            Ram_Rd_Data  => RamRdData,
+            WrGray_Out   => WrGrayOut,
+            WrGray_In    => WrGrayIn,
+            RdGray_Out   => RdGrayOut,
+            RdGray_In    => RdGrayIn
         );
 
-    -- Decoder (output clock domain). Own pipeline stages via EccPipeline_g and AXI-S handshake
-    -- propagate FIFO Out_Valid/Out_Ready to the user.
+    -- Storage (plain RAM holding the codeword)
+    i_ram : entity work.olo_base_ram_sdp
+        generic map (
+            Depth_g       => Depth_g,
+            Width_g       => CodewordWidth_c,
+            RamStyle_g    => RamStyle_g,
+            IsAsync_g     => true,
+            RamBehavior_g => RamBehavior_g
+        )
+        port map (
+            Clk     => In_Clk,
+            Wr_Addr => RamWrAddr,
+            Wr_Ena  => RamWrEna,
+            Wr_Data => RamWrData,
+            Rd_Clk  => Out_Clk,
+            Rd_Addr => RamRdAddr,
+            Rd_Data => RamRdData
+        );
+
+    -- Wr -> Rd pointer crossing (TMR-hardened)
+    i_cc_wr_rd : entity work.olo_ft_cc_bits
+        generic map (
+            Width_g      => AddrWidth_c,
+            SyncStages_g => SyncStages_g
+        )
+        port map (
+            In_Clk   => In_Clk,
+            In_Rst   => RstInInt,
+            In_Data  => WrGrayOut,
+            Out_Clk  => Out_Clk,
+            Out_Rst  => RstOutInt,
+            Out_Data => WrGrayIn
+        );
+
+    -- Rd -> Wr pointer crossing (TMR-hardened)
+    i_cc_rd_wr : entity work.olo_ft_cc_bits
+        generic map (
+            Width_g      => AddrWidth_c,
+            SyncStages_g => SyncStages_g
+        )
+        port map (
+            In_Clk   => Out_Clk,
+            In_Rst   => RstOutInt,
+            In_Data  => RdGrayOut,
+            Out_Clk  => In_Clk,
+            Out_Rst  => RstInInt,
+            Out_Data => RdGrayIn
+        );
+
+    -- Reset crossing (TMR-hardened)
+    i_rst_cc : entity work.olo_ft_cc_reset
+        port map (
+            A_Clk    => In_Clk,
+            A_RstIn  => In_Rst,
+            A_RstOut => RstInInt,
+            B_Clk    => Out_Clk,
+            B_RstIn  => Out_Rst,
+            B_RstOut => RstOutInt
+        );
+
+    In_RstOut  <= RstInInt;
+    Out_RstOut <= RstOutInt;
+
+    -- Decoder (output clock domain). Own pipeline stages via EccPipeline_g; AXI-S handshake
+    -- propagates the core's Out_Valid/Out_Ready to the user.
     i_dec : entity work.olo_ft_ecc_decode
         generic map (
             Width_g    => Width_g,
@@ -173,7 +258,7 @@ begin
         )
         port map (
             Clk            => Out_Clk,
-            Rst            => Fifo_OutRst,
+            Rst            => RstOutInt,
             In_Valid       => FifoOut_Valid,
             In_Ready       => FifoOut_Ready,
             In_Codeword    => FifoOut_Codeword,

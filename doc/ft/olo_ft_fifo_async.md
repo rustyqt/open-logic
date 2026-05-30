@@ -11,7 +11,7 @@ VHDL Source: [olo_ft_fifo_async](../../src/ft/vhdl/olo_ft_fifo_async.vhd)
 ## Description
 
 This component implements an **ECC-protected asynchronous FIFO** using SECDED (Single Error Correction, Double Error
-Detection) Hamming code. It wraps [olo_base_fifo_async](../base/olo_base_fifo_async.md) internally with a wider word to
+Detection) Hamming code. It reuses the shared async-FIFO control core (with TMR-hardened CDC) and stores a wider word to
 store parity bits alongside data.
 
 The ECC is transparent to the user: data is automatically encoded on write and decoded/corrected on read. Error status

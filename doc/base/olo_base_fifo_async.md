@@ -48,7 +48,6 @@ can be added on the read side of the FIFO.
 | ReadyRstState_g | std_logic | '1'       | Controls the status of the _In_Ready_ signal in during reset.<br> Choose '1' for minimal logic on the (often timing-critical) _In_Ready_ path. |
 | Optimization_g  | string    | "SPEED"   | "LATENCY" - optimize for minimum time until a word written is showing up at the output<br />"SPEED" - optimize for highest possible clock speed (at the cost of more latency) |
 | SyncStages_g    | positive  | 2         | Number of synchronization stages. <br />Note that more synchronization stages also mean a higher latency until written data is visible on the read side.<br />Range: 2 ... 4 |
-| FaultTolerant_g | boolean   | false     | If set to true, the internal CDC primitives (Gray pointer synchronizers and reset clock-crossing) are replaced by their TMR-hardened counterparts [olo_ft_cc_bits](../ft/olo_ft_cc_bits.md) and [olo_ft_cc_reset](../ft/olo_ft_cc_reset.md). Intended for radiation-hardened designs. <br />Default _false_ preserves the standard (non-TMR) behavior. |
 
 ## Interfaces
 
@@ -118,13 +117,11 @@ Block-RAM into one big FIFO.
 Regarding constraints, refer to  [clock-crossing principles](clock_crossing_principles.md). The FIFO is also
 auto-constraints capable.
 
-### Fault-Tolerant Variant
+### Architecture
 
-When `FaultTolerant_g` is set to `true`, the two Gray-pointer clock-domain crossings and the internal reset clock
-crossing use TMR-hardened replacements ([olo_ft_cc_bits](../ft/olo_ft_cc_bits.md) and
-[olo_ft_cc_reset](../ft/olo_ft_cc_reset.md)) instead of [olo_base_cc_bits](./olo_base_cc_bits.md) and
-[olo_base_cc_reset](./olo_base_cc_reset.md). The user interface of the FIFO is unchanged.
-
-This is used internally by [olo_ft_fifo_async](../ft/olo_ft_fifo_async.md), which combines ECC protection of the RAM
-data with TMR protection of the CDC control paths. For most applications the default (`FaultTolerant_g = false`) is
-the right choice.
+The control logic (pointers, level/flag detection, optimization pipeline) lives in a private entity
+`olo_private_fifo_async_core`, which exposes the storage RAM and the Gray-pointer/reset clock-crossings as ports. This
+entity supplies the standard [olo_base_cc_bits](./olo_base_cc_bits.md) / [olo_base_cc_reset](./olo_base_cc_reset.md)
+crossings and an [olo_base_ram_sdp](./olo_base_ram_sdp.md). The fault-tolerant variant
+[olo_ft_fifo_async](../ft/olo_ft_fifo_async.md) reuses the same core but supplies TMR-hardened CDC primitives and adds
+ECC for data-path protection, so this base entity carries no fault-tolerance dependency.
