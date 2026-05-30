@@ -163,6 +163,7 @@ architecture sim of olo_ft_ram_tdp_tb is
     signal A_Addr           : std_logic_vector(7 downto 0);
     signal A_WrEna          : std_logic                                      := '0';
     signal A_WrData         : std_logic_vector(Width_g - 1 downto 0);
+    signal A_RdEna          : std_logic                                      := '1';
     signal A_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
     signal A_ErrInj_Valid   : std_logic                                      := '0';
     signal A_RdData         : std_logic_vector(Width_g - 1 downto 0);
@@ -172,6 +173,7 @@ architecture sim of olo_ft_ram_tdp_tb is
     signal B_Addr           : std_logic_vector(7 downto 0);
     signal B_WrEna          : std_logic                                      := '0';
     signal B_WrData         : std_logic_vector(Width_g - 1 downto 0);
+    signal B_RdEna          : std_logic                                      := '1';
     signal B_ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0) := (others => '0');
     signal B_ErrInj_Valid   : std_logic                                      := '0';
     signal B_RdData         : std_logic_vector(Width_g - 1 downto 0);
@@ -196,6 +198,7 @@ begin
             A_Addr           => A_Addr,
             A_WrEna          => A_WrEna,
             A_WrData         => A_WrData,
+            A_RdEna          => A_RdEna,
             A_ErrInj_BitFlip => A_ErrInj_BitFlip,
             A_ErrInj_Valid   => A_ErrInj_Valid,
             A_RdData         => A_RdData,
@@ -205,6 +208,7 @@ begin
             B_Addr           => B_Addr,
             B_WrEna          => B_WrEna,
             B_WrData         => B_WrData,
+            B_RdEna          => B_RdEna,
             B_ErrInj_BitFlip => B_ErrInj_BitFlip,
             B_ErrInj_Valid   => B_ErrInj_Valid,
             B_RdData         => B_RdData,

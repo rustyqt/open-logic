@@ -38,12 +38,14 @@ space or high-energy physics environments.
 | Name           | In/Out | Length                | Default | Description                                                  |
 | :------------- | :----- | :-------------------- | ------- | :----------------------------------------------------------- |
 | A_Clk          | in     | 1                     | -       | Port A clock                                                 |
+| A_Rst          | in     | 1                     | '0'     | Port A reset (high-active, synchronous to _A_Clk_). Clears the ECC and read-valid pipelines; RAM contents are not cleared. |
 | A_Addr         | in     | _ceil(log2(Depth_g))_ | -       | Port A address                                               |
 | A_WrEna        | in     | 1                     | '0'     | Port A write enable                                          |
 | A_WrData       | in     | _Width_g_             | 0       | Port A write data                                            |
+| A_RdEna        | in     | 1                     | '1'     | Port A read enable. _A_RdValid_ is asserted _RamRdLatency_g_+_EccPipeline_g_ cycles after _A_RdEna_. The RAM always reads; _A_RdEna_ only gates the valid flag. |
 | A_ErrInj_BitFlip | in     | _eccCodewordWidth(Width_g)_ | (others => '0') | ECC error injection for testing/BIST. Each '1' bit XORs (flips) the corresponding bit of the stored codeword. Popcount 1 = SEC-correctable, popcount 2 = DED-detectable.<br>See [Error Injection](#error-injection). |
 | A_RdData       | out    | _Width_g_             | N/A     | Port A read data (corrected if a single-bit error was detected) |
-| A_RdValid      | out    | 1                     | N/A     | Port A read-data valid flag. '1' on cycles when _A_RdData_/_A_RdEccSec_/_A_RdEccDed_ correspond to a user-issued read (_A_WrEna_='0' delayed by _RamRdLatency_g_+_EccPipeline_g_). |
+| A_RdValid      | out    | 1                     | N/A     | Port A read-data valid flag. '1' when _A_RdData_/_A_RdEccSec_/_A_RdEccDed_ are valid, i.e. _A_RdEna_ delayed by _RamRdLatency_g_+_EccPipeline_g_. |
 | A_RdEccSec     | out    | 1                     | N/A     | Single error corrected flag. '1' when a single-bit error was detected and corrected in the read data. |
 | A_RdEccDed     | out    | 1                     | N/A     | Double error detected flag. '1' when an uncorrectable double-bit error was detected. Read data is unreliable in this case. |
 
@@ -52,9 +54,11 @@ space or high-energy physics environments.
 | Name           | In/Out | Length                | Default | Description                                                  |
 | :------------- | :----- | :-------------------- | ------- | :----------------------------------------------------------- |
 | B_Clk          | in     | 1                     | -       | Port B clock                                                 |
+| B_Rst          | in     | 1                     | '0'     | Port B reset (high-active, synchronous to _B_Clk_). Same behavior as _A_Rst_. |
 | B_Addr         | in     | _ceil(log2(Depth_g))_ | -       | Port B address                                               |
 | B_WrEna        | in     | 1                     | '0'     | Port B write enable                                          |
 | B_WrData       | in     | _Width_g_             | 0       | Port B write data                                            |
+| B_RdEna        | in     | 1                     | '1'     | Port B read enable. Same behavior as _A_RdEna_.              |
 | B_ErrInj_BitFlip | in     | _eccCodewordWidth(Width_g)_ | (others => '0') | Same behavior as _A_ErrInj_BitFlip_                            |
 | B_RdData       | out    | _Width_g_             | N/A     | Port B read data (corrected if a single-bit error was detected) |
 | B_RdValid      | out    | 1                     | N/A     | Same behavior as _A_RdValid_                                 |

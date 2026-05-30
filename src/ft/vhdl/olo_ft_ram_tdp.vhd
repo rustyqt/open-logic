@@ -47,6 +47,7 @@ entity olo_ft_ram_tdp is
         A_Addr           : in    std_logic_vector(log2ceil(Depth_g) - 1 downto 0);
         A_WrEna          : in    std_logic                                                := '0';
         A_WrData         : in    std_logic_vector(Width_g - 1 downto 0)                   := (others => '0');
+        A_RdEna          : in    std_logic                                                := '1';
         A_RdData         : out   std_logic_vector(Width_g - 1 downto 0);
         A_RdValid        : out   std_logic;
         A_RdEccSec       : out   std_logic;
@@ -59,6 +60,7 @@ entity olo_ft_ram_tdp is
         B_Addr           : in    std_logic_vector(log2ceil(Depth_g) - 1 downto 0);
         B_WrEna          : in    std_logic                                                := '0';
         B_WrData         : in    std_logic_vector(Width_g - 1 downto 0)                   := (others => '0');
+        B_RdEna          : in    std_logic                                                := '1';
         B_RdData         : out   std_logic_vector(Width_g - 1 downto 0);
         B_RdValid        : out   std_logic;
         B_RdEccSec       : out   std_logic;
@@ -81,23 +83,13 @@ architecture rtl of olo_ft_ram_tdp is
     signal B_RdCodeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
 
     -- Read-valid signals from the inner RAM, one per port. olo_base_ram_tdp derives RdValid from
-    -- RdEna, and the read-enables are driven from "not WrEna" (see below), so these pulse on every
-    -- cycle the corresponding port did not write (i.e. the codeword on *_RdCodeword reflects a pure
-    -- read). Feeds the matching decode entity's In_Valid directly; the decoder absorbs
-    -- EccPipeline_g cycles internally via its Out_Valid.
+    -- RdEna (the RAM always reads; A_RdEna/B_RdEna only gate the valid), so these pulse RdLatency
+    -- cycles after the corresponding port's RdEna. Feeds the matching decode entity's In_Valid
+    -- directly; the decoder absorbs EccPipeline_g cycles internally via its Out_Valid.
     signal A_RamRdValid : std_logic;
     signal B_RamRdValid : std_logic;
 
-    -- Inner-RAM read-enables. olo_base_ram_tdp always reads, but derives RdValid from RdEna; assert
-    -- on non-write cycles so RdValid (and thus In_Valid to the decoder) is high exactly when a read
-    -- result is present. The wrapper has no explicit read-enable: a port reads whenever not writing.
-    signal A_RamRdEna : std_logic;
-    signal B_RamRdEna : std_logic;
-
 begin
-
-    A_RamRdEna <= not A_WrEna;
-    B_RamRdEna <= not B_WrEna;
 
     -----------------------------------------------------------------------------------------------
     -- Port A
@@ -198,17 +190,19 @@ begin
         )
         port map (
             A_Clk     => A_Clk,
+            A_Rst     => A_Rst,
             A_Addr    => A_Addr,
             A_WrEna   => A_WrEna,
             A_WrData  => A_WrCodeword,
-            A_RdEna   => A_RamRdEna,
+            A_RdEna   => A_RdEna,
             A_RdData  => A_RdCodeword,
             A_RdValid => A_RamRdValid,
             B_Clk     => B_Clk,
+            B_Rst     => B_Rst,
             B_Addr    => B_Addr,
             B_WrEna   => B_WrEna,
             B_WrData  => B_WrCodeword,
-            B_RdEna   => B_RamRdEna,
+            B_RdEna   => B_RdEna,
             B_RdData  => B_RdCodeword,
             B_RdValid => B_RamRdValid
         );
