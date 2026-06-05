@@ -29,7 +29,7 @@ entity olo_ft_ram_sdp_tb is
         RamBehavior_g  : string                  := "RBW";
         IsAsync_g      : boolean                 := false;
         RamRdLatency_g : positive range 1 to 2   := 1;
-        EccPipeline_g  : natural range 0 to 1    := 0
+        EccPipeline_g  : natural range 0 to 2    := 0
     );
 end entity;
 
