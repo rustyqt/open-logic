@@ -24,10 +24,8 @@ flags indicate whether a single-bit error was corrected or a double-bit error wa
 The simple dual-port topology has one dedicated write port and one dedicated read port. The two ports may share a clock
 or run on independent clocks (set _IsAsync_g_ = true to give the read port its own _Rd_Clk_).
 
-For an opportunistic background memory scrubber, use [olo_ft_ram_sdp_scrub](./olo_ft_ram_sdp_scrub.md) — a separate
+For an opportunistic background memory scrubber, use [olo_ft_ram_sdp_scrub](./olo_ft_ram_sdp_scrub.md), a separate
 entity that wraps this one plus the scrubber FSM. The scrub variant is sync-only (no _IsAsync_g_).
-
-This is useful in **radiation-hardened** designs where single-event upsets (SEUs) can flip bits in memory cells.
 
 For background on the SECDED scheme, the codeword layout, error injection semantics and the constraints that
 apply across the _ft_ area, see [Open Logic Fault-Tolerance Principles](./olo_ft_principles.md).
@@ -118,9 +116,9 @@ Total read latency from address-presented to data-valid is `RamRdLatency_g + Ecc
 See the corresponding sections in
 [Open Logic Fault-Tolerance Principles](./olo_ft_principles.md):
 
-- [ECC Overhead](./olo_ft_principles.md#ecc-overhead) — internal storage width vs. data width
-- [Error Injection](./olo_ft_principles.md#error-injection) — semantics of _ErrInj\_BitFlip_ / _ErrInj\_Valid_
-- [Error Status Flags](./olo_ft_principles.md#error-status-flags) — meaning of _Rd_EccSec_ / _Rd_EccDed_
+- [ECC Overhead](./olo_ft_principles.md#ecc-overhead) - internal storage width vs. data width
+- [Error Injection](./olo_ft_principles.md#error-injection) - semantics of _ErrInj\_BitFlip_ / _ErrInj\_Valid_
+- [Error Status Flags](./olo_ft_principles.md#error-status-flags) - meaning of _Rd_EccSec_ / _Rd_EccDed_
 
 ### Constraints
 
