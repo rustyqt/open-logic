@@ -79,7 +79,7 @@ def add_configs(olo_tb):
     for RamBehav in ['RBW', 'WBR']:
         named_config(tb, {'RamBehavior_g': RamBehav})
     for RamRdLatency in [1, 2]:
-        for EccPipeline in [0, 1]:
+        for EccPipeline in [0, 1, 2]:
             named_config(tb, {'RamRdLatency_g': RamRdLatency,
                               'EccPipeline_g': EccPipeline})
     for Width in Widths:
@@ -101,7 +101,7 @@ def add_configs(olo_tb):
     for RamBehav in ['RBW', 'WBR']:
         named_config(tb, {'RamBehavior_g': RamBehav})
     for RamRdLatency in [1, 2]:
-        for EccPipeline in [0, 1]:
+        for EccPipeline in [0, 1, 2]:
             named_config(tb, {'RamRdLatency_g': RamRdLatency,
                               'EccPipeline_g': EccPipeline})
     for Width in Widths:

@@ -8,15 +8,17 @@
 ---------------------------------------------------------------------------------------------------
 -- ECC-protected single-port RAM with an opportunistic memory scrubber. Wraps
 -- `olo_ft_ram_sp` and `olo_ft_ram_scrubber`. The user-facing interface is
--- identical to `olo_ft_ram_sp` plus four scrubber-status outputs.
+-- identical to `olo_ft_ram_sp` plus a scrubber-enable input and four
+-- scrubber-status outputs.
 --
--- The scrubber walks the address space autonomously and writes corrected data
--- back when a single-bit error is detected. Because the underlying RAM is
--- single-port, the scrubber only issues a read or a writeback on cycles where
--- the user is doing neither (`WrEna='0' and RdEna='0'`); user accesses are
--- never stalled. If the user writes to the address currently being scrubbed
--- at any point between the scrubber's read and writeback, the writeback is
--- aborted and user data is authoritative.
+-- The scrubber owns the user/scrubber arbitration (see olo_ft_ram_scrubber).
+-- This wrapper ties the single shared user port to both scrubber user channels
+-- and collapses the scrubber's muxed write/read RAM channels back onto the one
+-- physical port of olo_ft_ram_sp. Because the underlying RAM is single-port, the
+-- scrubber acts only on cycles where the user is doing neither a read nor a
+-- write; user accesses are never stalled. If the user writes to the address
+-- currently being scrubbed at any point between the scrubber's read and
+-- writeback, the writeback is aborted and user data is authoritative.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_ram_sp_scrub.md
@@ -83,56 +85,66 @@ architecture rtl of olo_ft_ram_sp_scrub is
 
     constant AddrWidth_c : positive := log2ceil(Depth_g);
 
-    -- Scrubber-driven request signals. Scrub_Rd_Ena and Scrub_Wr_Ena are mutually exclusive,
-    -- so a single Scrub_Addr feeds the inner RAM's address regardless of read vs. write.
-    signal Scrub_Rd_Ena       : std_logic;
-    signal Scrub_Wr_Ena       : std_logic;
-    signal Scrub_Addr         : std_logic_vector(AddrWidth_c - 1 downto 0);
-    signal Scrub_Wr_Data      : std_logic_vector(Width_g - 1 downto 0);
-    -- Internal alias of the scrubber's Scrub_Rd_Valid output. Used both for masking the
-    -- user-facing RdValid and for driving the wrapper's Scrub_Rd_Valid port. Avoids
-    -- relying on VHDL-2008 read-from-out-port (poor synthesis-tool adoption).
-    signal Scrub_Rd_Valid_Int : std_logic;
+    -- Muxed RAM request channels driven by the scrubber. For a single-port RAM the write and
+    -- read channels are collapsed back onto one physical port below (they are mutually
+    -- exclusive in time, so a single Ram_Addr suffices).
+    signal Ram_Wr_Addr : std_logic_vector(AddrWidth_c - 1 downto 0);
+    signal Ram_Wr_Ena  : std_logic;
+    signal Ram_Wr_Data : std_logic_vector(Width_g - 1 downto 0);
+    signal Ram_Rd_Addr : std_logic_vector(AddrWidth_c - 1 downto 0);
+    signal Ram_Rd_Ena  : std_logic;
+    signal Ram_Addr    : std_logic_vector(AddrWidth_c - 1 downto 0);
 
-    -- Combined "port is busy this cycle". Single-port RAM: user wins for both reads and
-    -- writes; scrubber only acts on truly idle cycles.
-    signal User_PortBusy : std_logic;
-
-    -- Combined inhibit signal for the scrubber: high when either the user is using the
-    -- port (transient contention) or the wrapper's external Scrub_Enable is deasserted
-    -- (deliberate pause). The scrubber treats both cases the same way.
-    signal Scrub_Inhibit : std_logic;
-
-    -- Muxed inputs to the inner olo_ft_ram_sp. User priority is mutually
-    -- exclusive with scrubber requests because the scrubber asserts its own
-    -- *_Ena only when User_PortBusy = '0'.
-    signal Ram_Addr   : std_logic_vector(AddrWidth_c - 1 downto 0);
-    signal Ram_WrEna  : std_logic;
-    signal Ram_WrData : std_logic_vector(Width_g - 1 downto 0);
-    signal Ram_RdEna  : std_logic;
-
-    -- Decoded read outputs tapped from olo_ft_ram_sp; forwarded to user and
-    -- observed by the scrubber on the same cycle. Ram_RdValid pulses for any
-    -- read (user or scrubber); the wrapper masks out the scrubber-owned cycles
-    -- using Scrub_Rd_Valid (no wrapper-side shift register needed).
+    -- Decoded read outputs tapped from olo_ft_ram_sp; forwarded to user and observed by the
+    -- scrubber. Ram_RdValid pulses for any read (user or scrubber); the wrapper masks out the
+    -- scrubber-owned cycles using Scrub_Rd_Valid.
     signal Dec_RdData   : std_logic_vector(Width_g - 1 downto 0);
     signal Dec_RdEccSec : std_logic;
     signal Dec_RdEccDed : std_logic;
     signal Ram_RdValid  : std_logic;
 
+    -- Internal alias of the scrubber's Scrub_Rd_Valid output. Avoids relying on VHDL-2008
+    -- read-from-out-port (poor synthesis-tool adoption).
+    signal Scrub_Rd_Valid_Int : std_logic;
+
 begin
 
-    User_PortBusy <= WrEna or RdEna;
-    Scrub_Inhibit <= User_PortBusy or not Scrub_Enable;
+    -- Opportunistic scrubber + user/scrubber arbitration. The single user port feeds both user
+    -- channels; the scrubber returns muxed write and read RAM channels.
+    i_scrubber : entity work.olo_ft_ram_scrubber
+        generic map (
+            Depth_g            => Depth_g,
+            Width_g            => Width_g,
+            TotalReadLatency_g => RamRdLatency_g + EccPipeline_g
+        )
+        port map (
+            Clk             => Clk,
+            Rst             => Rst,
+            Scrub_Enable    => Scrub_Enable,
+            User_Wr_Addr    => Addr,
+            User_Wr_Ena     => WrEna,
+            User_Wr_Data    => WrData,
+            User_Rd_Addr    => Addr,
+            User_Rd_Ena     => RdEna,
+            Ram_Wr_Addr     => Ram_Wr_Addr,
+            Ram_Wr_Ena      => Ram_Wr_Ena,
+            Ram_Wr_Data     => Ram_Wr_Data,
+            Ram_Rd_Addr     => Ram_Rd_Addr,
+            Ram_Rd_Ena      => Ram_Rd_Ena,
+            Ram_Rd_Data     => Dec_RdData,
+            Ram_Rd_EccSec   => Dec_RdEccSec,
+            Ram_Rd_EccDed   => Dec_RdEccDed,
+            Scrub_Rd_Valid  => Scrub_Rd_Valid_Int,
+            Scrub_Rd_EccSec => Scrub_Rd_EccSec,
+            Scrub_Rd_EccDed => Scrub_Rd_EccDed,
+            Scrub_PassDone  => Scrub_PassDone
+        );
 
-    -- Bus mux: user always wins. Scrub_*_Ena are guaranteed '0' while User_PortBusy='1'
-    -- (via Scrub_Inhibit). ErrInj_BitFlip / ErrInj_Valid pass straight through to the
-    -- codec's latch -- see the "Error Injection" note in the doc for the interaction with
-    -- scrubber writebacks.
-    Ram_Addr   <= Addr   when User_PortBusy = '1' else Scrub_Addr;
-    Ram_WrEna  <= WrEna  or  Scrub_Wr_Ena;
-    Ram_WrData <= WrData when WrEna = '1'         else Scrub_Wr_Data;
-    Ram_RdEna  <= RdEna  or  Scrub_Rd_Ena;
+    -- Collapse the write/read RAM channels onto the single physical port. They are mutually
+    -- exclusive (the scrubber never reads and writes in the same cycle, and a user
+    -- simultaneous read+write targets the same Addr), so the write address wins when a write
+    -- is active and the read address is used otherwise.
+    Ram_Addr <= Ram_Wr_Addr when Ram_Wr_Ena = '1' else Ram_Rd_Addr;
 
     -- Inner ECC-protected RAM (encoder + olo_base_ram_sp + decoder).
     i_ram_sp : entity work.olo_ft_ram_sp
@@ -148,9 +160,9 @@ begin
             Clk            => Clk,
             Rst            => Rst,
             Addr           => Ram_Addr,
-            WrEna          => Ram_WrEna,
-            WrData         => Ram_WrData,
-            RdEna          => Ram_RdEna,
+            WrEna          => Ram_Wr_Ena,
+            WrData         => Ram_Wr_Data,
+            RdEna          => Ram_Rd_Ena,
             RdData         => Dec_RdData,
             RdValid        => Ram_RdValid,
             RdEccSec       => Dec_RdEccSec,
@@ -159,34 +171,7 @@ begin
             ErrInj_Valid   => ErrInj_Valid
         );
 
-    -- Opportunistic scrubber. The scrubber's status outputs drive the wrapper's status ports
-    -- directly. Request signals feed the muxes above.
-    i_scrubber : entity work.olo_ft_ram_scrubber
-        generic map (
-            Depth_g            => Depth_g,
-            Width_g            => Width_g,
-            TotalReadLatency_g => RamRdLatency_g + EccPipeline_g
-        )
-        port map (
-            Clk             => Clk,
-            Rst             => Rst,
-            Scrub_Inhibit   => Scrub_Inhibit,
-            Ram_Rd_Data     => Dec_RdData,
-            Ram_Rd_EccSec   => Dec_RdEccSec,
-            Ram_Rd_EccDed   => Dec_RdEccDed,
-            Scrub_Rd_Ena    => Scrub_Rd_Ena,
-            Scrub_Wr_Ena    => Scrub_Wr_Ena,
-            Scrub_Addr      => Scrub_Addr,
-            Scrub_Wr_Data   => Scrub_Wr_Data,
-            Scrub_Rd_Valid  => Scrub_Rd_Valid_Int,
-            Scrub_Rd_EccSec => Scrub_Rd_EccSec,
-            Scrub_Rd_EccDed => Scrub_Rd_EccDed,
-            Scrub_PassDone  => Scrub_PassDone
-        );
-
-    -- Forward decoder outputs; mask Ram_RdValid for cycles the scrubber owned the read. The
-    -- shift register that would have aligned a "user vs scrubber" tag through the read pipeline
-    -- is implemented for free by the scrubber FSM's WaitCnt -- see olo_ft_ram_scrubber.
+    -- Forward decoder outputs; mask Ram_RdValid for cycles the scrubber owned the read.
     RdData         <= Dec_RdData;
     RdEccSec       <= Dec_RdEccSec;
     RdEccDed       <= Dec_RdEccDed;
