@@ -173,6 +173,7 @@ architecture sim of olo_ft_ram_sdp_tb is
     signal Wr_Data        : std_logic_vector(Width_g - 1 downto 0)           := (others => '0');
     -- Read port
     signal Rd_Clk         : std_logic                                        := '0';
+    signal Rd_Rst         : std_logic                                        := '0';
     signal Rd_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
     signal Rd_Ena         : std_logic                                        := '0';
     signal Rd_Data        : std_logic_vector(Width_g - 1 downto 0);
@@ -204,6 +205,7 @@ begin
             Wr_Ena         => Wr_Ena,
             Wr_Data        => Wr_Data,
             Rd_Clk         => Rd_Clk,
+            Rd_Rst         => Rd_Rst,
             Rd_Addr        => Rd_Addr,
             Rd_Ena         => Rd_Ena,
             Rd_Data        => Rd_Data,
@@ -338,6 +340,78 @@ begin
                     checkDedOnly(62, '0', '1', Clk, Rd_Addr, Rd_Ena, Rd_EccSec, Rd_EccDed, "DedPair (1,2)");
                     checkDedOnly(63, '0', '1', Clk, Rd_Addr, Rd_Ena, Rd_EccSec, Rd_EccDed, "DedPair (2,5)");
                     checkDedOnly(64, '0', '1', Clk, Rd_Addr, Rd_Ena, Rd_EccSec, Rd_EccDed, "DedPair (mid,mid+1)");
+                end if;
+
+            elsif run("ResetInFlight") then
+                -- A reset asserted while reads are in flight must squash the read-valid
+                -- pipeline: with reads still enabled, Rst forces Rd_Valid to '0' (otherwise the
+                -- continuous Rd_Ena would keep it high), none leaks out after release, and the RAM
+                -- recovers (contents survive, fresh reads decode correctly). Exercises the
+                -- read-side reset wired into the base RAM: Rst in sync mode, Rd_Rst in async mode.
+                -- Rd_Valid responds through the RamRdLatency_g + EccPipeline_g read-valid pipeline,
+                -- so the pipeline is allowed to flush before Rd_Valid is required to be low.
+                write(50, 16#3C#, Clk, Wr_Addr, Wr_Data, Wr_Ena);
+
+                if IsAsync_g then
+                    -- Fill the read pipeline with continuous reads on the read clock
+                    wait until rising_edge(Rd_Clk);
+                    Rd_Addr <= toUslv(50, Rd_Addr'length);
+                    Rd_Ena  <= '1';
+                    wait until rising_edge(Rd_Clk);
+                    wait until rising_edge(Rd_Clk);
+                    -- Assert read-side reset, keep reads enabled, let the pipeline flush
+                    Rd_Rst <= '1';
+
+                    for i in 1 to RamRdLatency_g + EccPipeline_g + 1 loop
+                        wait until rising_edge(Rd_Clk);
+                    end loop;
+
+                    -- Reset must hold Rd_Valid low even though Rd_Ena is still asserted
+                    for i in 1 to 3 loop
+                        wait until rising_edge(Rd_Clk);
+                        check_equal(Rd_Valid, '0', "ResetInFlight: Rd_Valid squashed under Rd_Rst");
+                    end loop;
+
+                    -- Release; with no new reads no stale valid may emerge
+                    Rd_Ena  <= '0';
+                    Rd_Addr <= toUslv(0, Rd_Addr'length);
+                    Rd_Rst  <= '0';
+
+                    for i in 1 to RamRdLatency_g + EccPipeline_g + 2 loop
+                        wait until rising_edge(Rd_Clk);
+                        check_equal(Rd_Valid, '0', "ResetInFlight: no stale Rd_Valid after Rd_Rst");
+                    end loop;
+
+                    checkEcc(50, 16#3C#, '0', '0', Rd_Clk, Rd_Addr, Rd_Ena, Rd_Data, Rd_EccSec, Rd_EccDed,
+                             "ResetInFlight recovery");
+                else
+                    wait until rising_edge(Clk);
+                    Rd_Addr <= toUslv(50, Rd_Addr'length);
+                    Rd_Ena  <= '1';
+                    wait until rising_edge(Clk);
+                    wait until rising_edge(Clk);
+                    Rst     <= '1';
+
+                    for i in 1 to RamRdLatency_g + EccPipeline_g + 1 loop
+                        wait until rising_edge(Clk);
+                    end loop;
+
+                    for i in 1 to 3 loop
+                        wait until rising_edge(Clk);
+                        check_equal(Rd_Valid, '0', "ResetInFlight: Rd_Valid squashed under Rst");
+                    end loop;
+
+                    Rd_Ena  <= '0';
+                    Rd_Addr <= toUslv(0, Rd_Addr'length);
+                    Rst     <= '0';
+
+                    for i in 1 to RamRdLatency_g + EccPipeline_g + 2 loop
+                        wait until rising_edge(Clk);
+                        check_equal(Rd_Valid, '0', "ResetInFlight: no stale Rd_Valid after Rst");
+                    end loop;
+
+                    checkEcc(50, 16#3C#, '0', '0', Clk, Rd_Addr, Rd_Ena, Rd_Data, Rd_EccSec, Rd_EccDed,
+                             "ResetInFlight recovery");
                 end if;
 
             end if;
