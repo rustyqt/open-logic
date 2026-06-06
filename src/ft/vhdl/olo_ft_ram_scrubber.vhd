@@ -42,9 +42,11 @@
 --
 -- Scrub_Rd_Valid is driven from a length-L shift register tracking every scrub
 -- read-issue, so it still pulses on the codec return cycle when the FSM aborted in
--- the meantime -- the wrapper uses it to mask the user-facing Rd_Valid.
--- Scrub_Rd_EccSec / Scrub_Rd_EccDed are pass-throughs of the codec output; the
--- consumer must qualify them with Scrub_Rd_Valid.
+-- the meantime. The core also owns the user-facing read-valid mask:
+--   User_Rd_Valid = Ram_Rd_Valid and not Scrub_Rd_Valid
+-- so the scrubber's own reads never surface as user reads. Scrub_Rd_EccSec /
+-- Scrub_Rd_EccDed are pass-throughs of the codec output; the consumer must qualify
+-- them with Scrub_Rd_Valid.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_ram_scrubber.md
@@ -95,6 +97,10 @@ entity olo_ft_ram_scrubber is
         Ram_Rd_Data     : in    std_logic_vector(Width_g - 1 downto 0);
         Ram_Rd_EccSec   : in    std_logic;
         Ram_Rd_EccDed   : in    std_logic;
+        -- RAM read-valid (pulses for every read, user or scrubber)
+        Ram_Rd_Valid    : in    std_logic;
+        -- User-facing read valid: Ram_Rd_Valid with scrubber-owned read cycles masked out
+        User_Rd_Valid   : out   std_logic;
         -- Scrub Status
         Scrub_Rd_Valid  : out   std_logic;
         Scrub_Rd_EccSec : out   std_logic;
@@ -221,6 +227,7 @@ begin
         Scrub_WrReq     <= IssueWrite_v;
         Scrub_Addr      <= std_logic_vector(r.ScrubAddr);
         Scrub_Rd_Valid  <= r.ValidPipe(TotalReadLatency_g - 1);
+        User_Rd_Valid   <= Ram_Rd_Valid and not r.ValidPipe(TotalReadLatency_g - 1);
         Scrub_Rd_EccSec <= Ram_Rd_EccSec;
         Scrub_Rd_EccDed <= Ram_Rd_EccDed;
         Scrub_PassDone  <= r.PassDone;

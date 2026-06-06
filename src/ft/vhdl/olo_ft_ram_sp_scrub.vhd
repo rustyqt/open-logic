@@ -95,17 +95,13 @@ architecture rtl of olo_ft_ram_sp_scrub is
     signal Ram_Rd_Ena  : std_logic;
     signal Ram_Addr    : std_logic_vector(AddrWidth_c - 1 downto 0);
 
-    -- Decoded read outputs tapped from olo_ft_ram_sp; forwarded to user and observed by the
-    -- scrubber. Ram_RdValid pulses for any read (user or scrubber); the wrapper masks out the
-    -- scrubber-owned cycles using Scrub_Rd_Valid.
-    signal Dec_RdData   : std_logic_vector(Width_g - 1 downto 0);
-    signal Dec_RdEccSec : std_logic;
-    signal Dec_RdEccDed : std_logic;
+    -- RAM read outputs tapped from olo_ft_ram_sp; forwarded to the user and observed by the
+    -- scrubber. Ram_RdValid pulses for any read (user or scrubber); it is fed to the scrubber,
+    -- which masks the scrubber-owned cycles and returns the user-facing valid (User_Rd_Valid).
+    signal Ram_RdData   : std_logic_vector(Width_g - 1 downto 0);
+    signal Ram_RdEccSec : std_logic;
+    signal Ram_RdEccDed : std_logic;
     signal Ram_RdValid  : std_logic;
-
-    -- Internal alias of the scrubber's Scrub_Rd_Valid output. Avoids relying on VHDL-2008
-    -- read-from-out-port (poor synthesis-tool adoption).
-    signal Scrub_Rd_Valid_Int : std_logic;
 
 begin
 
@@ -131,10 +127,12 @@ begin
             Ram_Wr_Data     => Ram_Wr_Data,
             Ram_Rd_Addr     => Ram_Rd_Addr,
             Ram_Rd_Ena      => Ram_Rd_Ena,
-            Ram_Rd_Data     => Dec_RdData,
-            Ram_Rd_EccSec   => Dec_RdEccSec,
-            Ram_Rd_EccDed   => Dec_RdEccDed,
-            Scrub_Rd_Valid  => Scrub_Rd_Valid_Int,
+            Ram_Rd_Data     => Ram_RdData,
+            Ram_Rd_EccSec   => Ram_RdEccSec,
+            Ram_Rd_EccDed   => Ram_RdEccDed,
+            Ram_Rd_Valid    => Ram_RdValid,
+            User_Rd_Valid   => RdValid,
+            Scrub_Rd_Valid  => Scrub_Rd_Valid,
             Scrub_Rd_EccSec => Scrub_Rd_EccSec,
             Scrub_Rd_EccDed => Scrub_Rd_EccDed,
             Scrub_PassDone  => Scrub_PassDone
@@ -163,19 +161,18 @@ begin
             WrEna          => Ram_Wr_Ena,
             WrData         => Ram_Wr_Data,
             RdEna          => Ram_Rd_Ena,
-            RdData         => Dec_RdData,
+            RdData         => Ram_RdData,
             RdValid        => Ram_RdValid,
-            RdEccSec       => Dec_RdEccSec,
-            RdEccDed       => Dec_RdEccDed,
+            RdEccSec       => Ram_RdEccSec,
+            RdEccDed       => Ram_RdEccDed,
             ErrInj_BitFlip => ErrInj_BitFlip,
             ErrInj_Valid   => ErrInj_Valid
         );
 
-    -- Forward decoder outputs; mask Ram_RdValid for cycles the scrubber owned the read.
-    RdData         <= Dec_RdData;
-    RdEccSec       <= Dec_RdEccSec;
-    RdEccDed       <= Dec_RdEccDed;
-    RdValid        <= Ram_RdValid and not Scrub_Rd_Valid_Int;
-    Scrub_Rd_Valid <= Scrub_Rd_Valid_Int;
+    -- Forward decoder outputs. The masked user RdValid and Scrub_Rd_Valid are driven by the
+    -- scrubber (User_Rd_Valid / Scrub_Rd_Valid in the port map above).
+    RdData   <= Ram_RdData;
+    RdEccSec <= Ram_RdEccSec;
+    RdEccDed <= Ram_RdEccDed;
 
 end architecture;

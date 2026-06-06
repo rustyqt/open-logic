@@ -96,7 +96,7 @@ The status outputs report the scrubber's _own_ reads and are valid only on the c
 
 | Name            | In/Out | Length | Default | Description                                                  |
 | :-------------- | :----- | :----- | ------- | :----------------------------------------------------------- |
-| Scrub_Rd_Valid  | out    | 1      | N/A     | Pulses '1' on the cycle a scrubber-issued read returns from the decoder (one pulse per scrubber read, regardless of whether an error was detected). Qualifies _Scrub_Rd_EccSec_ / _Scrub_Rd_EccDed_; also used internally to mask the user-facing _RdValid_. |
+| Scrub_Rd_Valid  | out    | 1      | N/A     | Pulses '1' on the cycle a scrubber-issued read returns from the decoder (one pulse per scrubber read, regardless of whether an error was detected). Qualifies _Scrub_Rd_EccSec_ / _Scrub_Rd_EccDed_; also used by the scrubber core to mask the user-facing _RdValid_. |
 | Scrub_Rd_EccSec | out    | 1      | N/A     | SEC flag of the scrubber's own read. The scrubber writes this address back when it is '1' (and _Scrub_Rd_EccDed_ = '0'). |
 | Scrub_Rd_EccDed | out    | 1      | N/A     | DED flag of the scrubber's own read. The scrubber **does not** write the cell back in this case (the corrected value is unreliable). |
 | Scrub_PassDone  | out    | 1      | N/A     | Pulses '1' for one cycle when the scrubber's address counter rolls over from _Depth_g_-1 back to 0, marking a completed pass over the memory. |
@@ -111,18 +111,18 @@ The wrapper places the [olo_ft_ram_scrubber](./olo_ft_ram_scrubber.md) in front 
 [olo_ft_ram_sp](./olo_ft_ram_sp.md). The scrubber owns the user/scrubber arbitration: the single user port
 (`Addr` / `WrEna` / `WrData` / `RdEna`) is tied to both of the scrubber's user channels, and the scrubber returns
 muxed write and read RAM channels (`Ram_Wr_*` / `Ram_Rd_*`). It taps the RAM's decoded read output
-(`Dec_Rd_Data` / `EccSec` / `EccDed`) for its FSM and writeback payload. The user always wins; the scrubber drives the
-RAM only on cycles where the user port is idle (`WrEna = RdEna = 0`).
+(`Ram_RdData` / `Ram_RdEccSec` / `Ram_RdEccDed`) for its FSM and writeback payload. The user always wins; the scrubber
+drives the RAM only on cycles where the user port is idle (`WrEna = RdEna = 0`).
 
 Because the underlying RAM is single-port, the wrapper collapses the two RAM channels back onto the one physical port
 with a single address mux (`Ram_Addr = Ram_Wr_Addr when Ram_Wr_Ena else Ram_Rd_Addr`); the write enable, write data
 and read enable pass straight through. `ErrInj_*` go directly to the wrapped RAM's encoder, bypassing the scrubber.
 
-The decoder's `RdData` / `RdEccSec` / `RdEccDed` are forwarded straight to the user. The user-facing `RdValid` is the
-RAM's read-valid **AND-NOT** the scrubber's `Scrub_Rd_Valid`, so the cycles consumed by the scrubber's own reads do
-not pulse it. No wrapper-side shift register is needed: the scrubber's read-valid is already aligned to the
-decoder-return cycle by its internal length-(`RamRdLatency_g` + `EccPipeline_g`) pipeline (see
-[olo_ft_ram_scrubber](./olo_ft_ram_scrubber.md)).
+The decoder's `RdData` / `RdEccSec` / `RdEccDed` are forwarded straight to the user. The RAM's read-valid is fed into
+the scrubber, which masks the cycles consumed by its own reads and returns the user-facing valid
+(`User_Rd_Valid = Ram_RdValid AND NOT Scrub_Rd_Valid`); the wrapper forwards that directly to `RdValid`. The mask
+lives in the scrubber core because its read-valid is already aligned to the decoder-return cycle by the internal
+length-(`RamRdLatency_g` + `EccPipeline_g`) pipeline (see [olo_ft_ram_scrubber](./olo_ft_ram_scrubber.md)).
 
 ### Opportunistic Scrubbing
 
