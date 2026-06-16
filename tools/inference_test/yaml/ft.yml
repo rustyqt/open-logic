@@ -43,8 +43,14 @@ entities:
     fixed_generics:
       Depth_g: 256
     configurations:
-      - name: "w32-ecc1-lat2"
-        generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+      # Pacer ON: this representative config also exercises the strobe_gen + strobe_div cascade and
+      # the g_paced generate in synthesis (ScrubClkHz_g/ScrubPeriod_g give a ~1 s period at 100 MHz).
+      # olo_ft_ram_sdp_scrub keeps the pacer off, so CI synthesizes both pacer states across the two
+      # scrub wrappers while staying at one config per entity.
+      - name: "w64-ecc2-lat1-paced"
+        generics: { Width_g: 64, EccPipeline_g: 2, RamRdLatency_g: 1, ScrubClkHz_g: 100000000.0, ScrubPeriod_g: 1.0 }
+        in_reduce: { WrData: 64, ErrInj_BitFlip: 72 }
+        out_reduce: { RdData: 64 }
 
   # ============================================================
   # olo_ft_ram_sdp
@@ -65,6 +71,8 @@ entities:
     configurations:
       - name: "w32-ecc1-lat2"
         generics: { Width_g: 32, EccPipeline_g: 1, RamRdLatency_g: 2 }
+        in_reduce: { Wr_Data: 32, ErrInj_BitFlip: 39 }
+        out_reduce: { Rd_Data: 32 }
 
   # ============================================================
   # olo_ft_ram_tdp  
