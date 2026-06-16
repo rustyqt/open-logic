@@ -6,48 +6,10 @@
 ---------------------------------------------------------------------------------------------------
 -- Description
 ---------------------------------------------------------------------------------------------------
--- Private opportunistic memory-scrubber core. Instantiated by ECC-protected RAM
--- wrappers (`olo_ft_ram_sp_scrub`, `olo_ft_ram_sdp_scrub`); not intended for
+-- Private opportunistic memory-scrubber core for the ECC-protected RAM wrappers
+-- (olo_ft_ram_sp_scrub, olo_ft_ram_sdp_scrub). It owns the scrub FSM and the user/scrubber
+-- arbitration; the user always wins, so user accesses are never stalled. Not intended for
 -- end-user instantiation.
---
--- This core owns BOTH the scrub FSM and the user/scrubber arbitration. It is
--- reusable across the single- and dual-port wrappers by presenting a generic
--- write-channel + read-channel interface:
---   * the user side (`User_Wr_*` / `User_Rd_*`) carries the wrapper's user
---     requests,
---   * the RAM side (`Ram_Wr_*` / `Ram_Rd_*`) carries the muxed requests to the
---     wrapped RAM.
--- The user always wins: the scrubber drives a channel only on cycles where the
--- user is not using *either* channel. A single-port wrapper ties both user
--- channels to its shared port and collapses the two RAM channels back onto it;
--- a dual-port wrapper maps the channels 1:1 onto the RAM's write and read ports.
---
--- Operating principle: read each address in turn; the decoder response is registered every cycle,
--- and L+1 cycles after the read issue Decide_s acts on the *registered* flags/data -- firing the
--- writeback from the WbData register when a single-bit error was corrected, and advancing ScrubAddr.
--- Registering the response splits the RAM-read -> decode -> re-encode -> RAM-write path across two
--- cycles instead of one long combinational loop. The scrubber never stalls the user: it issues bus
--- requests only while the combined Scrub_Inhibit (user-busy OR external Scrub_Enable deasserted) is
--- low. An inhibit anywhere in the read-decide window aborts the in-flight operation back to Idle_s
--- without advancing the address counter, so the scrubber retries the same address on the next idle
--- slot. User data is always authoritative.
---
--- Sequence per address (T = read-issue cycle, L = TotalReadLatency_g):
---   T          : assert the scrubber's read request (only when Scrub_Inhibit='0')
---   T .. T+L+1 : if Scrub_Inhibit='1' on any cycle, abort to Idle_s; ValidPipe keeps shifting so
---                Scrub_Rd_Valid still pulses on the codec return cycle (T+L)
---   T+L        : decoder response valid; captured into EccSecReg / EccDedReg / WbData
---   T+L+1      : in Decide_s, act on the registered flags; if EccSec='1' and EccDed='0' assert the
---                writeback (Ram_Wr_Data = WbData through the wrapper's encoder); advance ScrubAddr;
---                pulse Scrub_PassDone on rollover; go to Idle_s.
---
--- Scrub_Rd_Valid is driven from a length-L shift register tracking every scrub
--- read-issue, so it still pulses on the codec return cycle when the FSM aborted in
--- the meantime. The core also owns the user-facing read-valid mask:
---   User_Rd_Valid = Ram_Rd_Valid and not Scrub_Rd_Valid
--- so the scrubber's own reads never surface as user reads. Scrub_Rd_EccSec /
--- Scrub_Rd_EccDed are pass-throughs of the codec output; the consumer must qualify
--- them with Scrub_Rd_Valid.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_private_scrubber.md
@@ -61,6 +23,7 @@
 library ieee;
     use ieee.std_logic_1164.all;
     use ieee.numeric_std.all;
+    use ieee.math_real.all;
 
 library work;
     use work.olo_base_pkg_math.all;
@@ -72,7 +35,13 @@ entity olo_ft_private_scrubber is
     generic (
         Depth_g            : positive range 2 to positive'high;
         Width_g            : positive;
-        TotalReadLatency_g : positive
+        TotalReadLatency_g : positive;
+        -- Single-port address collapse: drive Ram_Addr for olo_ft_ram_sp_scrub; false for dual-port.
+        SinglePortRam_g    : boolean := false;
+        -- Optional internal pacer: one scrub pass every ScrubPeriod_g seconds. Free-running when
+        -- ScrubPeriod_g = 0.0 (the default). ScrubClkHz_g must be the actual Clk frequency.
+        ScrubClkHz_g       : real    := 100000000.0;
+        ScrubPeriod_g      : real    := 0.0
     );
     port (
         -- Clock and Reset
@@ -94,6 +63,8 @@ entity olo_ft_private_scrubber is
         -- RAM Read Channel (muxed user/scrubber requests)
         Ram_Rd_Addr     : out   std_logic_vector(log2ceil(Depth_g) - 1 downto 0);
         Ram_Rd_Ena      : out   std_logic;
+        -- Collapsed single-port RAM address (driven only when SinglePortRam_g = true, else tied '0').
+        Ram_Addr        : out   std_logic_vector(log2ceil(Depth_g) - 1 downto 0);
         -- Decoded RAM Read (response, for the scrub FSM and writeback payload)
         Ram_Rd_Data     : in    std_logic_vector(Width_g - 1 downto 0);
         Ram_Rd_EccSec   : in    std_logic;
@@ -103,10 +74,10 @@ entity olo_ft_private_scrubber is
         -- User-facing read valid: Ram_Rd_Valid with scrubber-owned read cycles masked out
         User_Rd_Valid   : out   std_logic;
         -- Scrub Status
-        Scrub_Rd_Valid  : out   std_logic;
-        Scrub_Rd_EccSec : out   std_logic;
-        Scrub_Rd_EccDed : out   std_logic;
-        Scrub_PassDone  : out   std_logic
+        Scrub_EccSec    : out   std_logic;
+        Scrub_EccDed    : out   std_logic;
+        Scrub_PassDone  : out   std_logic;
+        Scrub_Overrun   : out   std_logic
     );
 end entity;
 
@@ -122,12 +93,11 @@ architecture rtl of olo_ft_private_scrubber is
     type TwoProcess_r is record
         Fsm       : ScrubFsm_t;
         ScrubAddr : unsigned(AddrWidth_c - 1 downto 0);
-        WaitCnt   : unsigned(log2ceil(TotalReadLatency_g + 1) - 1 downto 0);
+        WaitCnt   : natural range 0 to TotalReadLatency_g;
         ValidPipe : std_logic_vector(TotalReadLatency_g - 1 downto 0);
         PassDone  : std_logic;
-        -- Registered decoder response. Breaks the RAM-read -> decode -> re-encode -> RAM-write
-        -- combinational loop: Decide_s consumes these registers instead of the live decoder output,
-        -- so decode and re-encode land in separate clock cycles.
+        -- Registered decoder response; breaks the read -> decode -> re-encode -> write combinational
+        -- loop (Decide_s consumes these, not the live decoder output).
         EccSecReg : std_logic;
         EccDedReg : std_logic;
         WbData    : std_logic_vector(Width_g - 1 downto 0);
@@ -138,28 +108,114 @@ architecture rtl of olo_ft_private_scrubber is
     -- Combined "do not act" signal: user is using a channel OR external disable.
     signal Scrub_Inhibit : std_logic;
 
-    -- Scrubber-internal request signals (driven by the FSM, consumed by the muxes).
-    -- Scrub_RdReq and Scrub_WrReq are mutually exclusive, so a single Scrub_Addr
-    -- feeds both channel muxes.
+    -- Scrubber-internal requests (FSM -> muxes). Scrub_RdReq/Scrub_WrReq are mutually exclusive,
+    -- so a single Scrub_Addr feeds both muxes.
     signal Scrub_RdReq : std_logic;
     signal Scrub_WrReq : std_logic;
     signal Scrub_Addr  : std_logic_vector(AddrWidth_c - 1 downto 0);
 
+    -- Optional pacer (ScrubPeriod_g > 0.0): one pass per ScrubPeriod_g seconds. ScrubActive is the
+    -- paced enable, tied '1' when free-running.
+    constant Paced_c    : boolean  := ScrubPeriod_g > 0.0;
+    constant BaseHz_c   : real     := 1000.0;
+    constant DivRatio_c : positive := integer(round(maximum(1.0, ScrubPeriod_g * BaseHz_c)));
+
+    signal ScrubActive : std_logic;
+    signal Overrun_i   : std_logic;
+
 begin
 
-    -- User wins on either channel; the external Scrub_Enable can also pause the scrubber.
-    Scrub_Inhibit <= User_Wr_Ena or User_Rd_Ena or not Scrub_Enable;
+    -- User wins on either channel; Scrub_Enable and the pacer (ScrubActive) further gate the scrubber.
+    Scrub_Inhibit <= User_Wr_Ena or User_Rd_Ena or not ScrubActive or not Scrub_Enable;
 
-    -- Request muxes: the user request passes through whenever it is active, otherwise the
-    -- scrubber's request fills the idle cycle. Scrub_RdReq / Scrub_WrReq are guaranteed '0'
-    -- while Scrub_Inhibit = '1', so the user is never overridden. On a scrubber writeback the
-    -- payload is the *registered* decoded read data (WbData), which the wrapper's encoder
-    -- re-encodes into the RAM.
+    -- Request muxes: the user request wins, otherwise the scrubber fills the idle cycle. The
+    -- writeback payload is the registered decoded read data (WbData).
     Ram_Wr_Addr <= User_Wr_Addr when User_Wr_Ena = '1' else Scrub_Addr;
     Ram_Wr_Ena  <= User_Wr_Ena  or  Scrub_WrReq;
     Ram_Wr_Data <= User_Wr_Data when User_Wr_Ena = '1' else r.WbData;
     Ram_Rd_Addr <= User_Rd_Addr when User_Rd_Ena = '1' else Scrub_Addr;
     Ram_Rd_Ena  <= User_Rd_Ena  or  Scrub_RdReq;
+
+    -- Single-port address collapse: drive the one physical port from Ram_Addr (write address wins,
+    -- else read address, else scrub address). Tied '0' for dual-port wrappers.
+    g_sp_addr : if SinglePortRam_g generate
+        Ram_Addr <= User_Wr_Addr when User_Wr_Ena = '1' else
+                    User_Rd_Addr when User_Rd_Ena = '1' else
+                    Scrub_Addr;
+    end generate;
+
+    g_dp_addr : if not SinglePortRam_g generate
+        Ram_Addr <= (others => '0');
+    end generate;
+
+    -- *** Optional pacer + overrun watchdog ***
+    -- Config sanity (static, checked at elaboration).
+    assert (not Paced_c) or (ScrubClkHz_g >= BaseHz_c)
+        report "olo_ft_private_scrubber: ScrubClkHz_g must be >= 1000.0 when the pacer is enabled (ScrubPeriod_g > 0.0)"
+        severity failure;
+
+    g_paced : if Paced_c generate
+        signal BaseTick    : std_logic;
+        signal PeriodPulse : std_logic;
+    begin
+
+        -- 1 kHz base tick, divided down to one "start a pass" strobe every ScrubPeriod_g seconds.
+        i_strobe : entity work.olo_base_strobe_gen
+            generic map (
+                FreqClkHz_g    => ScrubClkHz_g,
+                FreqStrobeHz_g => BaseHz_c
+            )
+            port map (
+                Clk       => Clk,
+                Rst       => Rst,
+                Out_Valid => BaseTick
+            );
+
+        i_div : entity work.olo_base_strobe_div
+            generic map (
+                MaxRatio_g => DivRatio_c
+            )
+            port map (
+                Clk       => Clk,
+                Rst       => Rst,
+                In_Valid  => BaseTick,
+                Out_Valid => PeriodPulse
+            );
+
+        -- One pass per period: arm on the period strobe, disarm when the pass completes. Overrun
+        -- pulses (and warns) if a strobe arrives while a pass is still running.
+        p_pace : process (Clk) is
+        begin
+            if rising_edge(Clk) then
+                Overrun_i <= '0';
+                if r.PassDone = '1' then
+                    ScrubActive <= '0';
+                end if;
+                if PeriodPulse = '1' then
+                    if ScrubActive = '1' and r.PassDone = '0' then
+                        Overrun_i <= '1';
+                        report "olo_ft_private_scrubber: scrub pass did not complete within ScrubPeriod_g (overrun)"
+                            severity warning;
+                    end if;
+                    if Scrub_Enable = '1' then
+                        ScrubActive <= '1';
+                    end if;
+                end if;
+                if Rst = '1' then
+                    ScrubActive <= '0';
+                    Overrun_i   <= '0';
+                end if;
+            end if;
+        end process;
+
+    end generate;
+
+    g_free : if not Paced_c generate
+        ScrubActive <= '1';
+        Overrun_i   <= '0';
+    end generate;
+
+    Scrub_Overrun <= Overrun_i;
 
     -- *** Combinatorial Process ***
     p_comb : process (all) is
@@ -184,11 +240,9 @@ begin
             when Idle_s =>
                 if Scrub_Inhibit = '0' then
                     IssueRead_v := '1';
-                    -- WaitCnt counts ReadWait cycles starting at 1. ReadWait now spans through the
-                    -- codec-return cycle (WaitCnt = L), so Decide_s runs one cycle later and
-                    -- consumes the *registered* decoder outputs (EccSecReg/EccDedReg/WbData), which
-                    -- are valid the cycle after the live decoder output.
-                    v.WaitCnt := to_unsigned(1, v.WaitCnt'length);
+                    -- Start the read-latency count; Decide_s (one cycle after WaitCnt = L) consumes
+                    -- the registered decoder outputs.
+                    v.WaitCnt := 1;
                     v.Fsm     := ReadWait_s;
                 end if;
 
@@ -205,8 +259,7 @@ begin
                 if Scrub_Inhibit = '1' then
                     v.Fsm := Idle_s;
                 else
-                    -- Write back SEC only; DED is unreliable and not corrected. Uses the registered
-                    -- decoder flags so the decision is not in the decode->writeback critical path.
+                    -- Write back SEC only (DED data is unreliable), using the registered flags.
                     if r.EccDedReg = '0' and r.EccSecReg = '1' then
                         IssueWrite_v := '1';
                     end if;
@@ -225,22 +278,23 @@ begin
 
         end case;
 
-        -- Shift IssueRead_v through L stages. Decoupled from FSM state so Scrub_Rd_Valid
-        -- still pulses on the codec return cycle when the FSM aborted mid-flight.
+        -- Shift IssueRead_v through L stages, decoupled from FSM state so the scrub read-return
+        -- pulse still lands on the codec-return cycle even when the FSM aborted mid-flight.
         v.ValidPipe(0) := IssueRead_v;
 
         for i in 1 to TotalReadLatency_g - 1 loop
             v.ValidPipe(i) := r.ValidPipe(i - 1);
         end loop;
 
-        Scrub_RdReq     <= IssueRead_v;
-        Scrub_WrReq     <= IssueWrite_v;
-        Scrub_Addr      <= std_logic_vector(r.ScrubAddr);
-        Scrub_Rd_Valid  <= r.ValidPipe(TotalReadLatency_g - 1);
-        User_Rd_Valid   <= Ram_Rd_Valid and not r.ValidPipe(TotalReadLatency_g - 1);
-        Scrub_Rd_EccSec <= Ram_Rd_EccSec;
-        Scrub_Rd_EccDed <= Ram_Rd_EccDed;
-        Scrub_PassDone  <= r.PassDone;
+        Scrub_RdReq <= IssueRead_v;
+        Scrub_WrReq <= IssueWrite_v;
+        Scrub_Addr  <= std_logic_vector(r.ScrubAddr);
+        -- Mask the scrubber's own read cycles out of the user-facing read valid.
+        User_Rd_Valid <= Ram_Rd_Valid and not r.ValidPipe(TotalReadLatency_g - 1);
+        -- Status: gate the codec flags with the scrub read-return pulse to get clean countable pulses.
+        Scrub_EccSec   <= Ram_Rd_EccSec and r.ValidPipe(TotalReadLatency_g - 1);
+        Scrub_EccDed   <= Ram_Rd_EccDed and r.ValidPipe(TotalReadLatency_g - 1);
+        Scrub_PassDone <= r.PassDone;
 
         r_next <= v;
 
@@ -255,9 +309,9 @@ begin
             if Rst = '1' then
                 r.Fsm       <= Idle_s;
                 r.ScrubAddr <= (others => '0');
-                r.WaitCnt   <= (others => '0');
                 r.PassDone  <= '0';
-                -- Reset so Scrub_Rd_Valid does not pulse on a random startup pattern.
+                -- WaitCnt is intentionally not reset (loaded in Idle_s before ReadWait_s reads it).
+                -- ValidPipe is reset so no spurious read-return pulse occurs at startup.
                 r.ValidPipe <= (others => '0');
             end if;
         end if;

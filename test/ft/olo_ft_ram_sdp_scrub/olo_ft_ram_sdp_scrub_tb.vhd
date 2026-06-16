@@ -153,27 +153,67 @@ architecture sim of olo_ft_ram_sdp_scrub_tb is
         end if;
     end procedure;
 
+    -- Advance the scrubber by waiting for a given number of completed passes (Scrub_PassDone pulses).
+    procedure waitPasses (
+        passes          : positive;
+        signal Clk      : in std_logic;
+        signal PassDone : in std_logic) is
+        variable PassCnt_v : natural := 0;
+    begin
+
+        while PassCnt_v < passes loop
+            wait until rising_edge(Clk);
+            if PassDone = '1' then
+                PassCnt_v := PassCnt_v + 1;
+            end if;
+        end loop;
+
+    end procedure;
+
+    -- Like waitPasses, but also tally how many cycles a watched event was high over that window.
+    procedure countOverPasses (
+        passes          : positive;
+        signal Clk      : in  std_logic;
+        signal PassDone : in  std_logic;
+        signal Event    : in  std_logic;
+        eventCount      : out natural) is
+        variable PassCnt_v  : natural := 0;
+        variable EventCnt_v : natural := 0;
+    begin
+
+        while PassCnt_v < passes loop
+            wait until rising_edge(Clk);
+            if Event = '1' then
+                EventCnt_v := EventCnt_v + 1;
+            end if;
+            if PassDone = '1' then
+                PassCnt_v := PassCnt_v + 1;
+            end if;
+        end loop;
+
+        eventCount := EventCnt_v;
+    end procedure;
+
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
     -----------------------------------------------------------------------------------------------
-    signal Clk             : std_logic                                        := '0';
-    signal Rst             : std_logic                                        := '0';
-    signal Wr_Addr         : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
-    signal Wr_Ena          : std_logic                                        := '0';
-    signal Wr_Data         : std_logic_vector(Width_g - 1 downto 0)           := (others => '0');
-    signal Rd_Addr         : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
-    signal Rd_Ena          : std_logic                                        := '0';
-    signal Rd_Data         : std_logic_vector(Width_g - 1 downto 0);
-    signal Rd_Valid        : std_logic;
-    signal Rd_EccSec       : std_logic;
-    signal Rd_EccDed       : std_logic;
-    signal ErrInj_BitFlip  : std_logic_vector(CodewordWidth_c - 1 downto 0)   := (others => '0');
-    signal ErrInj_Valid    : std_logic                                        := '0';
-    signal Scrub_Enable    : std_logic                                        := '1';
-    signal Scrub_Rd_Valid  : std_logic;
-    signal Scrub_Rd_EccSec : std_logic;
-    signal Scrub_Rd_EccDed : std_logic;
-    signal Scrub_PassDone  : std_logic;
+    signal Clk            : std_logic                                        := '0';
+    signal Rst            : std_logic                                        := '0';
+    signal Wr_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
+    signal Wr_Ena         : std_logic                                        := '0';
+    signal Wr_Data        : std_logic_vector(Width_g - 1 downto 0)           := (others => '0');
+    signal Rd_Addr        : std_logic_vector(log2ceil(Depth_c) - 1 downto 0) := (others => '0');
+    signal Rd_Ena         : std_logic                                        := '0';
+    signal Rd_Data        : std_logic_vector(Width_g - 1 downto 0);
+    signal Rd_Valid       : std_logic;
+    signal Rd_EccSec      : std_logic;
+    signal Rd_EccDed      : std_logic;
+    signal ErrInj_BitFlip : std_logic_vector(CodewordWidth_c - 1 downto 0)   := (others => '0');
+    signal ErrInj_Valid   : std_logic                                        := '0';
+    signal Scrub_Enable   : std_logic                                        := '1';
+    signal Scrub_EccSec   : std_logic;
+    signal Scrub_EccDed   : std_logic;
+    signal Scrub_PassDone : std_logic;
 
 begin
 
@@ -203,9 +243,8 @@ begin
             ErrInj_BitFlip  => ErrInj_BitFlip,
             ErrInj_Valid    => ErrInj_Valid,
             Scrub_Enable    => Scrub_Enable,
-            Scrub_Rd_Valid  => Scrub_Rd_Valid,
-            Scrub_Rd_EccSec => Scrub_Rd_EccSec,
-            Scrub_Rd_EccDed => Scrub_Rd_EccDed,
+            Scrub_EccSec    => Scrub_EccSec,
+            Scrub_EccDed    => Scrub_EccDed,
             Scrub_PassDone  => Scrub_PassDone
         );
 
@@ -220,9 +259,7 @@ begin
     test_runner_watchdog(runner, 5 ms);
 
     p_control : process is
-        variable PassCnt_v      : natural;
         variable RdValidCnt_v   : natural;
-        variable MaskFail_v     : boolean;
         variable IssuedCnt_v    : natural;
         variable UserValidCnt_v : natural;
     begin
@@ -248,19 +285,11 @@ begin
                 checkEcc(1, 5, '0', '0', Clk, Rd_Addr, Rd_Ena, Rd_Data, Rd_Valid, Rd_EccSec, Rd_EccDed, "Basic re-read 1=5");
 
             elsif run("ScrubPassDone") then
-                PassCnt_v := 0;
-
-                while PassCnt_v < 3 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
-
+                waitPasses(3, Clk, Scrub_PassDone);
                 check_true(true, "Scrub_PassDone pulsed >= 3 times");
 
-            -- Each planted SEC must be observed by the scrubber exactly once (Scrub_Rd_Valid +
-            -- Scrub_Rd_EccSec pulse together): the first visit repairs the cell, so later passes
+            -- Each planted SEC must be observed by the scrubber exactly once (Scrub_EccSec pulses
+            -- once): the first visit repairs the cell, so later passes
             -- read it clean.
             elsif run("ScrubFixesSec") then
                 writeWithFlip(10, 16#AB#, singleBit(0),
@@ -268,18 +297,7 @@ begin
                 writeWithFlip(20, 16#CD#, singleBit(2),
                               Clk, Wr_Addr, Wr_Data, Wr_Ena, ErrInj_BitFlip, ErrInj_Valid);
 
-                PassCnt_v    := 0;
-                RdValidCnt_v := 0;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_Rd_Valid = '1' and Scrub_Rd_EccSec = '1' then
-                        RdValidCnt_v := RdValidCnt_v + 1;
-                    end if;
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                countOverPasses(2, Clk, Scrub_PassDone, Scrub_EccSec, RdValidCnt_v);
 
                 check_equal(RdValidCnt_v, 2,
                             "ScrubFixesSec: each planted SEC observed by the scrubber exactly once");
@@ -290,24 +308,13 @@ begin
                          "ScrubFixesSec addr20 cleaned");
 
             -- The scrubber must observe the DED word on its own reads exactly once per pass
-            -- (Scrub_Rd_Valid + Scrub_Rd_EccDed pulse together; the word is never repaired, so
+            -- (Scrub_EccDed pulses; the word is never repaired, so
             -- both passes of the window see it) and never write it back.
             elsif run("ScrubDoesNotWriteOnDed") then
                 writeWithFlip(70, 16#EE#, doubleBit(0, 1),
                               Clk, Wr_Addr, Wr_Data, Wr_Ena, ErrInj_BitFlip, ErrInj_Valid);
 
-                PassCnt_v    := 0;
-                RdValidCnt_v := 0;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_Rd_Valid = '1' and Scrub_Rd_EccDed = '1' then
-                        RdValidCnt_v := RdValidCnt_v + 1;
-                    end if;
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                countOverPasses(2, Clk, Scrub_PassDone, Scrub_EccDed, RdValidCnt_v);
 
                 check_equal(RdValidCnt_v, 2,
                             "ScrubDoesNotWriteOnDed: DED word observed exactly once per pass (never repaired)");
@@ -345,11 +352,10 @@ begin
 
             -- SDP arbitration: drive BOTH user ports every cycle (write to 150, read from 151) so
             -- there is never an idle cycle. The cross-port inhibit must starve the scrubber
-            -- completely: once the returns of any pre-saturation scrub reads have drained,
-            -- Scrub_Rd_Valid staying '0' proves no scrub read is issued. A value written before
-            -- the storm must stay intact (no scrub writeback sneaks onto the write port). This
-            -- also exercises simultaneous dual-port user traffic, which only the SDP topology
-            -- supports.
+            -- completely: with no idle cycle it can never issue a read or advance, so Scrub_PassDone
+            -- must never pulse. A value written before the storm must stay intact (no scrub writeback
+            -- sneaks onto the write port). This also exercises simultaneous dual-port user traffic,
+            -- which only the SDP topology supports.
             elsif run("UserBusyNoCorruption") then
                 writeWithFlip(100, 16#5A#, (CodewordWidth_c - 1 downto 0 => '0'),
                               Clk, Wr_Addr, Wr_Data, Wr_Ena, ErrInj_BitFlip, ErrInj_Valid);
@@ -361,12 +367,10 @@ begin
                     Wr_Ena  <= '1';
                     Rd_Addr <= toUslv(151, Rd_Addr'length);
                     Rd_Ena  <= '1';
-                    -- Pre-saturation scrub reads return within the read latency; afterwards no
-                    -- scrub read may be issued at all.
-                    if i > RamRdLatency_g + EccPipeline_g + 1 then
-                        check_equal(Scrub_Rd_Valid, '0',
-                                    "UserBusyNoCorruption: scrubber fully starved while both ports are busy");
-                    end if;
+                    -- Fully starved: the scrubber never gets an idle cycle, so it can never
+                    -- complete a pass.
+                    check_equal(Scrub_PassDone, '0',
+                                "UserBusyNoCorruption: scrubber fully starved while both ports are busy");
                 end loop;
 
                 wait until rising_edge(Clk);
@@ -398,14 +402,7 @@ begin
 
                 Scrub_Enable <= '1';
 
-                PassCnt_v := 0;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                waitPasses(2, Clk, Scrub_PassDone);
 
                 check_true(true, "Scrub_PassDone resumes pulsing after Scrub_Enable='1'");
 
@@ -443,38 +440,17 @@ begin
                                 "PassDone pulse width = 1 (pulse " & integer'image(k) & ")");
                 end loop;
 
-            -- With the user idle: Scrub_Rd_Valid pulse count = Depth_c per pass, user-facing
-            -- Rd_Valid stays '0' (scrubber-owned reads masked). Scrub_Rd_EccSec /
-            -- Scrub_Rd_EccDed are pass-throughs of the codec output and not gated, so they
-            -- are meaningful only on cycles where Scrub_Rd_Valid='1' -- not checked here.
-            elsif run("ScrubRdValidIntegrity") then
+            -- With the user idle, the scrubber scans the whole RAM but its own reads must never
+            -- surface on the user-facing Rd_Valid (they are masked internally). Run two full passes
+            -- (Scrub_PassDone x2) and assert Rd_Valid stays '0' throughout.
+            elsif run("ScrubReadMaskedFromUser") then
+                -- Align to a pass boundary, then count any user-facing Rd_Valid pulses over two full
+                -- passes; the scrubber's own reads are masked, so the count must be zero.
+                waitPasses(1, Clk, Scrub_PassDone);
+                countOverPasses(2, Clk, Scrub_PassDone, Rd_Valid, RdValidCnt_v);
 
-                loop
-                    wait until rising_edge(Clk);
-                    exit when Scrub_PassDone = '1';
-                end loop;
-
-                PassCnt_v    := 0;
-                RdValidCnt_v := 0;
-                MaskFail_v   := false;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_Rd_Valid = '1' then
-                        RdValidCnt_v := RdValidCnt_v + 1;
-                    end if;
-                    if Rd_Valid /= '0' then
-                        MaskFail_v := true;
-                    end if;
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
-
-                check_equal(RdValidCnt_v, 2 * Depth_c,
-                            "Scrub_Rd_Valid pulse count = 2 * Depth_c over 2 passes");
-                check_true(not MaskFail_v,
-                           "User-facing Rd_Valid stays '0' while user is idle (scrubber masking works)");
+                check_equal(RdValidCnt_v, 0,
+                            "User-facing Rd_Valid stays '0' while user is idle (scrubber reads masked)");
 
             -- Address-wrap boundary: SEC at addr 0 (first) and at addr Depth_c - 1 (last,
             -- where the address counter wraps in Decide_s and PassDone fires).
@@ -483,14 +459,7 @@ begin
                               Clk, Wr_Addr, Wr_Data, Wr_Ena, ErrInj_BitFlip, ErrInj_Valid);
                 writeWithFlip(Depth_c - 1, 16#22#, singleBit(1),
                               Clk, Wr_Addr, Wr_Data, Wr_Ena, ErrInj_BitFlip, ErrInj_Valid);
-                PassCnt_v := 0;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                waitPasses(2, Clk, Scrub_PassDone);
 
                 checkEcc(0, 16#11#, '0', '0',
                          Clk, Rd_Addr, Rd_Ena, Rd_Data, Rd_Valid, Rd_EccSec, Rd_EccDed,
@@ -513,8 +482,8 @@ begin
                 end loop;
 
                 -- Assert reset while the scrubber is active: ValidPipe is fed every cycle, so a
-                -- missing reset would let Scrub_Rd_Valid pulse. Reset must hold it (and the masked
-                -- user Rd_Valid) low.
+                -- missing reset would leave stale read-valid bits that spuriously pulse the gated
+                -- Scrub_EccSec/EccDed or mask a user read. Reset must clear them.
                 wait until rising_edge(Clk);
                 Rst <= '1';
 
@@ -525,8 +494,9 @@ begin
 
                 for i in 1 to 3 loop
                     wait until rising_edge(Clk);
-                    check_equal(Scrub_Rd_Valid, '0', "ResetInFlight: Scrub_Rd_Valid squashed under Rst");
-                    check_equal(Rd_Valid,       '0', "ResetInFlight: user Rd_Valid squashed under Rst");
+                    check_equal(Scrub_EccSec, '0', "ResetInFlight: no scrub status pulse under Rst");
+                    check_equal(Scrub_EccDed, '0', "ResetInFlight: no scrub status pulse under Rst");
+                    check_equal(Rd_Valid,     '0', "ResetInFlight: user Rd_Valid squashed under Rst");
                 end loop;
 
                 -- Pause the scrubber before release so no NEW scrub reads start; no stale valid
@@ -537,8 +507,9 @@ begin
 
                 for i in 1 to RamRdLatency_g + EccPipeline_g + 2 loop
                     wait until rising_edge(Clk);
-                    check_equal(Scrub_Rd_Valid, '0', "ResetInFlight: no stale Scrub_Rd_Valid after release");
-                    check_equal(Rd_Valid,       '0', "ResetInFlight: no stale user Rd_Valid after release");
+                    check_equal(Scrub_EccSec, '0', "ResetInFlight: no stale scrub status after release");
+                    check_equal(Scrub_EccDed, '0', "ResetInFlight: no stale scrub status after release");
+                    check_equal(Rd_Valid,     '0', "ResetInFlight: no stale user Rd_Valid after release");
                 end loop;
 
                 -- Contents survived the reset; a fresh user read decodes correctly.
@@ -547,14 +518,7 @@ begin
                          "ResetInFlight: contents survive + fresh read decodes");
 
                 -- The scrubber resumes after reset.
-                PassCnt_v := 0;
-
-                while PassCnt_v < 1 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                waitPasses(1, Clk, Scrub_PassDone);
 
                 check_true(true, "ResetInFlight: scrubber resumes (PassDone pulses)");
 
@@ -616,7 +580,7 @@ begin
                     end if;
                     -- Each scrub read of addr 0 returns its SEC flag on the codec-return cycle,
                     -- even though the FSM aborts; counting these proves the abort path runs.
-                    if Scrub_Rd_Valid = '1' and Scrub_Rd_EccSec = '1' then
+                    if Scrub_EccSec = '1' then
                         RdValidCnt_v := RdValidCnt_v + 1;
                     end if;
                 end loop;
@@ -660,14 +624,7 @@ begin
 
                 -- Re-enable and idle: the same-address retry now completes and repairs addr 0.
                 Scrub_Enable <= '1';
-                PassCnt_v    := 0;
-
-                while PassCnt_v < 2 loop
-                    wait until rising_edge(Clk);
-                    if Scrub_PassDone = '1' then
-                        PassCnt_v := PassCnt_v + 1;
-                    end if;
-                end loop;
+                waitPasses(2, Clk, Scrub_PassDone);
 
                 checkEcc(0, 16#A5#, '0', '0', Clk, Rd_Addr, Rd_Ena, Rd_Data, Rd_Valid, Rd_EccSec, Rd_EccDed,
                          "WritebackAbortsOnContention: addr 0 repaired after contention (same-addr retry)");

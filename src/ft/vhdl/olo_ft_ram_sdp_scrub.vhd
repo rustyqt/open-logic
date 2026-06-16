@@ -6,22 +6,11 @@
 ---------------------------------------------------------------------------------------------------
 -- Description
 ---------------------------------------------------------------------------------------------------
--- ECC-protected simple dual-port RAM with an opportunistic memory scrubber.
--- Wraps `olo_ft_ram_sdp` and `olo_ft_private_scrubber`. The user-facing interface
--- mirrors `olo_ft_ram_sdp` (write port + read port) plus the scrubber control
--- and status ports.
---
--- The scrubber owns the user/scrubber arbitration (see olo_ft_private_scrubber).
--- This wrapper maps the scrubber's write and read RAM channels 1:1 onto the
--- write and read ports of olo_ft_ram_sdp, so it carries no mux logic of its own.
--- It is fundamentally synchronous -- there is no `IsAsync_g` generic and no
--- `Rd_Clk` / `Rd_Rst` port; the scrubber observes user accesses on a single
--- clock to pick idle cycles. The scrubber acts only when neither user port is
--- active; user accesses are never stalled.
---
--- If the user writes to the address currently being scrubbed at any point
--- between the scrubber's read and writeback, the writeback is aborted and
--- user data is authoritative.
+-- ECC-protected simple dual-port RAM with an opportunistic memory scrubber. Wraps olo_ft_ram_sdp
+-- and olo_ft_private_scrubber. Synchronous-only (no IsAsync_g / Rd_Clk / Rd_Rst): the scrubber needs
+-- a single clock to spot idle cycles. The scrubber acts only when both user ports are idle, so user
+-- accesses are never stalled and user data is always authoritative (any user access aborts an
+-- in-flight scrub operation).
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_ram_sdp_scrub.md
@@ -50,7 +39,9 @@ entity olo_ft_ram_sdp_scrub is
         RamRdLatency_g : positive             := 1;
         RamStyle_g     : string               := "auto";
         RamBehavior_g  : string               := "RBW";
-        EccPipeline_g  : natural range 0 to 2 := 0
+        EccPipeline_g  : natural range 0 to 2 := 0;
+        ScrubClkHz_g   : real                 := 100000000.0;
+        ScrubPeriod_g  : real                 := 0.0
     );
     port (
         -- Clock and Reset
@@ -72,12 +63,11 @@ entity olo_ft_ram_sdp_scrub is
         ErrInj_Valid    : in    std_logic                                                := '0';
         -- Scrubber Control
         Scrub_Enable    : in    std_logic                                                := '1';
-        -- Scrubber Status. Scrub_Rd_EccSec / Scrub_Rd_EccDed are valid only when
-        -- Scrub_Rd_Valid='1' (cycle the scrubber's own read returns from the codec).
-        Scrub_Rd_Valid  : out   std_logic;
-        Scrub_Rd_EccSec : out   std_logic;
-        Scrub_Rd_EccDed : out   std_logic;
-        Scrub_PassDone  : out   std_logic
+        -- Scrubber Status
+        Scrub_EccSec    : out   std_logic;
+        Scrub_EccDed    : out   std_logic;
+        Scrub_PassDone  : out   std_logic;
+        Scrub_Overrun   : out   std_logic
     );
 end entity;
 
@@ -95,9 +85,8 @@ architecture rtl of olo_ft_ram_sdp_scrub is
     signal Ram_Rd_Addr : std_logic_vector(AddrWidth_c - 1 downto 0);
     signal Ram_Rd_Ena  : std_logic;
 
-    -- RAM read outputs tapped from olo_ft_ram_sdp; forwarded to the user and observed by the
-    -- scrubber. Ram_Rd_Valid pulses for any read (user or scrubber); it is fed to the scrubber,
-    -- which masks the scrubber-owned cycles and returns the user-facing valid (User_Rd_Valid).
+    -- RAM read outputs from olo_ft_ram_sdp; forwarded to the user and observed by the scrubber,
+    -- which masks its own read cycles to produce the user-facing Rd_Valid.
     signal Ram_Rd_Data   : std_logic_vector(Width_g - 1 downto 0);
     signal Ram_Rd_EccSec : std_logic;
     signal Ram_Rd_EccDed : std_logic;
@@ -105,13 +94,15 @@ architecture rtl of olo_ft_ram_sdp_scrub is
 
 begin
 
-    -- Opportunistic scrubber + user/scrubber arbitration. The user write/read ports feed the
-    -- scrubber's user channels; its muxed RAM channels map straight onto the RAM ports below.
+    -- Opportunistic scrubber + arbitration. The user write/read ports feed the scrubber's channels;
+    -- its muxed RAM channels map 1:1 onto the RAM ports below.
     i_scrubber : entity work.olo_ft_private_scrubber
         generic map (
             Depth_g            => Depth_g,
             Width_g            => Width_g,
-            TotalReadLatency_g => RamRdLatency_g + EccPipeline_g
+            TotalReadLatency_g => RamRdLatency_g + EccPipeline_g,
+            ScrubClkHz_g       => ScrubClkHz_g,
+            ScrubPeriod_g      => ScrubPeriod_g
         )
         port map (
             Clk             => Clk,
@@ -127,19 +118,20 @@ begin
             Ram_Wr_Data     => Ram_Wr_Data,
             Ram_Rd_Addr     => Ram_Rd_Addr,
             Ram_Rd_Ena      => Ram_Rd_Ena,
+            -- SinglePortRam_g defaults false: 1:1 channels used, collapsed Ram_Addr unused.
+            Ram_Addr        => open,
             Ram_Rd_Data     => Ram_Rd_Data,
             Ram_Rd_EccSec   => Ram_Rd_EccSec,
             Ram_Rd_EccDed   => Ram_Rd_EccDed,
             Ram_Rd_Valid    => Ram_Rd_Valid,
             User_Rd_Valid   => Rd_Valid,
-            Scrub_Rd_Valid  => Scrub_Rd_Valid,
-            Scrub_Rd_EccSec => Scrub_Rd_EccSec,
-            Scrub_Rd_EccDed => Scrub_Rd_EccDed,
-            Scrub_PassDone  => Scrub_PassDone
+            Scrub_EccSec    => Scrub_EccSec,
+            Scrub_EccDed    => Scrub_EccDed,
+            Scrub_PassDone  => Scrub_PassDone,
+            Scrub_Overrun   => Scrub_Overrun
         );
 
-    -- Inner ECC-protected SDP RAM (encoder + olo_base_ram_sdp + decoder). Sync-only here
-    -- (IsAsync_g => false), since the scrubber requires single-clock operation.
+    -- Inner ECC-protected SDP RAM; sync-only (IsAsync_g => false) for single-clock scrubbing.
     i_ram_sdp : entity work.olo_ft_ram_sdp
         generic map (
             Depth_g        => Depth_g,
@@ -168,8 +160,7 @@ begin
             ErrInj_Valid   => ErrInj_Valid
         );
 
-    -- Forward decoder outputs. The masked user Rd_Valid and Scrub_Rd_Valid are driven by the
-    -- scrubber (User_Rd_Valid / Scrub_Rd_Valid in the port map above).
+    -- Forward decoder outputs (the masked user Rd_Valid comes from the scrubber above).
     Rd_Data   <= Ram_Rd_Data;
     Rd_EccSec <= Ram_Rd_EccSec;
     Rd_EccDed <= Ram_Rd_EccDed;
