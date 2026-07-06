@@ -149,7 +149,8 @@ def add_configs(olo_tb):
     tb = olo_tb.test_bench('olo_ft_fifo_sync_tb')
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
-    for EccPipeline in [0, 1]:
+    # Sweep the full entity range (0..2), matching the ft RAM test benches
+    for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
 
     ### olo_ft_fifo_async ###
