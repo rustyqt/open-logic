@@ -14,6 +14,9 @@ library ieee;
 library vunit_lib;
     context vunit_lib.vunit_context;
 
+library work;
+    use work.olo_test_activity_pkg.all;
+
 library olo;
 
 ---------------------------------------------------------------------------------------------------
@@ -44,6 +47,10 @@ architecture sim of olo_ft_cc_pulse_tb is
 
     -- Expected output pulse width: SyncStages_g - 1 cycles on Out_Clk
     constant ExpectedOutPulse_c : integer := SyncStages_g - 1;
+
+    -- Slower of the two clocks defines the reaction time of the crossing
+    constant SlowerClock_Period_c : time := (1 sec) / minimum(ClkIn_Frequency_c, ClkOut_Frequency_c);
+    constant MaxReactionTime_c    : time := (8 + SyncStages_g) * SlowerClock_Period_c;
 
     -----------------------------------------------------------------------------------------------
     -- Interface Signals
@@ -242,6 +249,57 @@ begin
                     wait until rising_edge(Out_Clk);
                     exit when Out_Pulse = std_logic_vector'(NumPulses_c - 1 downto 0 => '0');
                 end loop;
+
+            elsif run("Reset") then
+                -- Check if a reset on either side is propagated to both RstOut ports
+                wait until rising_edge(In_Clk);
+                In_RstIn <= '1';
+                wait until rising_edge(In_Clk);
+                In_RstIn <= '0';
+                wait for MaxReactionTime_c*2;
+                check_equal(In_RstOut, '0', "In_RstOut not de-asserted after In_RstIn");
+                check_equal(Out_RstOut, '0', "Out_RstOut not de-asserted after In_RstIn");
+                check(In_RstOut'last_event < MaxReactionTime_c*2, "In_RstOut not asserted after In_RstIn");
+                check(Out_RstOut'last_event < MaxReactionTime_c*2, "Out_RstOut not asserted after In_RstIn");
+
+                wait until rising_edge(Out_Clk);
+                Out_RstIn <= '1';
+                wait until rising_edge(Out_Clk);
+                Out_RstIn <= '0';
+                wait for MaxReactionTime_c*2;
+                check_equal(In_RstOut, '0', "In_RstOut not de-asserted after Out_RstIn");
+                check_equal(Out_RstOut, '0', "Out_RstOut not de-asserted after Out_RstIn");
+                check(In_RstOut'last_event < MaxReactionTime_c*2, "In_RstOut not asserted after Out_RstIn");
+                check(Out_RstOut'last_event < MaxReactionTime_c*2, "Out_RstOut not asserted after Out_RstIn");
+
+            elsif run("NoPulse-RstIn") then
+                -- Check that a sender-side reset does not produce a spurious output pulse
+                sendPulse(0, In_Clk, In_Pulse);
+                wait_for_value_stdlv(Out_Pulse, "0001", 100 us, "Pulse not transferred before In_RstIn");
+                wait for MaxReactionTime_c;
+                pulse_sig(In_RstIn, In_Clk);
+                wait for MaxReactionTime_c;
+                check_no_activity_stdlv(Out_Pulse, MaxReactionTime_c*2, "Unexpected pulse after In_RstIn");
+
+            elsif run("NoPulse-RstOut") then
+                -- Check that a receiver-side reset does not produce a spurious output pulse
+                sendPulse(0, In_Clk, In_Pulse);
+                wait_for_value_stdlv(Out_Pulse, "0001", 100 us, "Pulse not transferred before Out_RstIn");
+                wait for MaxReactionTime_c;
+                pulse_sig(Out_RstIn, Out_Clk);
+                wait for MaxReactionTime_c;
+                check_no_activity_stdlv(Out_Pulse, MaxReactionTime_c*2, "Unexpected pulse after Out_RstIn");
+
+            elsif run("PulseDuringReset") then
+                -- A pulse arriving while the sender side is in reset must be discarded: the SR
+                -- latch is held clear as long as the synchronized reset is asserted
+                wait until rising_edge(In_Clk);
+                In_RstIn <= '1';
+                wait for MaxReactionTime_c;
+                sendPulse(0, In_Clk, In_Pulse);
+                wait until rising_edge(In_Clk);
+                In_RstIn <= '0';
+                check_no_activity_stdlv(Out_Pulse, MaxReactionTime_c*2, "Pulse leaked through reset");
 
             end if;
 
