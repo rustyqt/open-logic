@@ -6,34 +6,10 @@
 ---------------------------------------------------------------------------------------------------
 -- Description
 ---------------------------------------------------------------------------------------------------
--- TMR-hardened multi-bit clock domain crossing for level signals. Implements the long-pulse
--- TMR synchronizer from Li, Nelson, Wirthlin, "Synchronization Techniques for Crossing Multiple
--- Clock Domains in FPGA-Based TMR Circuits", IEEE TNS 2010 (Fig. 12): three independent
--- N-stage synchronizer chains with a per-bit majority voter at the output. Provides
--- single-SEU immunity for level-signal CDC in radiation-hardened designs.
---
--- Topology, per bit:
---
---   In_Data[i] --+--> RegIn_A --> Reg0_A --> RegN_A(0..) --.
---                |                                          \
---                +--> RegIn_B --> Reg0_B --> RegN_B(0..) ----+--> Voter --> Out_Data[i]
---                |                                          /
---                +--> RegIn_C --> Reg0_C --> RegN_C(0..) --'
---
--- All sender-side registers (RegIn_*) are clocked by In_Clk. All receiver-side registers
--- (Reg0_*, RegN_*) are clocked by Out_Clk. Each chain is independently triplicated to survive
--- a single SEU. The voter produces the 2-of-3 majority on each output bit.
---
--- This component is the fault-tolerant counterpart of olo_base_cc_bits with the same interface.
--- It is suitable for arbitrary multi-bit level signals (including Gray-coded pointers and
--- generic control signals). For pulse signals, consider olo_ft_cc_pulse instead.
---
--- Architecture notes:
--- - Manual TMR (triplicated chains + per-bit majority voter) combined with
---   syn_radhardlevel = "none" at the architecture level prevents double-triplication by
---   vendor TMR tools (e.g. Synplify for Microchip Libero).
--- - Standard CDC attributes (async_reg, dont_merge, preserve, etc.) are applied to each
---   triplicated register.
+-- TMR-hardened multi-bit clock domain crossing for level signals: three independent
+-- synchronizer chains with a per-bit majority voter provide single-SEU immunity (long-pulse
+-- TMR synchronizer from Li, Nelson, Wirthlin, IEEE TNS 2010). It is the fault-tolerant
+-- counterpart of olo_base_cc_bits with the same interface.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_cc_bits.md

@@ -290,7 +290,7 @@ common constraints) are described once in
 | Package                                       | Description                                                    |
 | --------------------------------------------- | -------------------------------------------------------------- |
 | [olo_ft_pkg_ecc](./ft/olo_ft_pkg_ecc.md)      | SECDED Hamming code functions for ECC-protected memories.      |
-| olo_ft_pkg_attribute                          | Synthesis attributes specific to fault-tolerant (TMR) designs. |
+| [olo_ft_pkg_attribute](./ft/olo_ft_pkg_attribute.md) | Synthesis attributes specific to fault-tolerant (TMR) designs. **For internal use within Open Logic only** |
 
 ### ECC Codec (olo_ft_ecc_\<...\>)
 

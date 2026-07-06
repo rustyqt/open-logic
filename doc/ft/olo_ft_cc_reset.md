@@ -6,14 +6,16 @@
 
 ## Status Information
 
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/coverage/olo_ft_cc_reset.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/branches/olo_ft_cc_reset.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/issues/olo_ft_cc_reset.json?cacheSeconds=0)
+
 VHDL Source: [olo_ft_cc_reset](../../src/ft/vhdl/olo_ft_cc_reset.vhd)
 
 ## Description
 
-TMR-hardened clock crossing for resets. This entity is structurally identical to
-[olo_base_cc_reset](../base/olo_base_cc_reset.md) but instantiates
-[olo_ft_cc_bits](./olo_ft_cc_bits.md) (triplicated, with per-bit majority voter) instead of
-`olo_base_cc_bits` for the acknowledge-path synchronizers.
+TMR-hardened clock crossing for resets, the fault-tolerant counterpart to
+[olo_base_cc_reset](../base/olo_base_cc_reset.md) with the same interface and behavior.
 
 Reset on either side is asserted on the other clock domain immediately and de-asserted
 synchronously to the corresponding clock. The reset is clock-crossed in both directions.
@@ -38,10 +40,10 @@ synchronously to the corresponding clock. The reset is clock-crossed in both dir
 ## Detailed Description
 
 The component behaves identically to `olo_base_cc_reset`. See that component's documentation
-for the full protocol description. The only difference is that each of the two internal
-acknowledge-path synchronizers is a TMR-hardened `olo_ft_cc_bits` instead of the non-TMR
-`olo_base_cc_bits`. This protects the ack paths against single-event upsets in radiation
-environments.
+for the full protocol description. The entity is structurally identical to `olo_base_cc_reset`;
+the only difference is that each of the two internal acknowledge-path synchronizers is a
+TMR-hardened [olo_ft_cc_bits](./olo_ft_cc_bits.md) instead of the non-TMR `olo_base_cc_bits`.
+This protects the ack paths against single-event upsets in radiation environments.
 
 Note that the local request-path registers (`RstALatch`, `RstBLatch`, `RstRqstB2A`,
 `RstRqstA2B`) are **not** manually triplicated in this entity. They should be covered by

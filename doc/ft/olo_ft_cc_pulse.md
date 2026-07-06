@@ -6,18 +6,20 @@
 
 ## Status Information
 
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/coverage/olo_ft_cc_pulse.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/branches/olo_ft_cc_pulse.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/issues/olo_ft_cc_pulse.json?cacheSeconds=0)
+
 VHDL Source: [olo_ft_cc_pulse](../../src/ft/vhdl/olo_ft_cc_pulse.vhd)
 
 ## Description
 
-This component is a **TMR-hardened pulse clock domain crossing**. It implements the modified
-short-pulse synchronizer from Li, Nelson, and Wirthlin [1] (Fig. 14), triplicated per Fig. 11 of
-the same paper, with a per-bit majority voter at the output. It provides provable single-SEU
-immunity for pulse-based CDC in radiation-hardened designs.
+This component is a **TMR-hardened pulse clock domain crossing**. A single SEU on any flip-flop
+inside the crossing is masked, making the component suitable for pulse-based CDC in
+radiation-hardened designs.
 
-This is the fault-tolerant counterpart to [olo_base_cc_pulse](../base/olo_base_cc_pulse.md),
-with the same pulse-based semantics but using the Li TMR synchronizer internally instead of a
-toggle-and-2FF-synchronizer design. Pulses on `In_Pulse` are converted to pulses on `Out_Pulse`
+This is the fault-tolerant counterpart to [olo_base_cc_pulse](../base/olo_base_cc_pulse.md) with
+the same pulse-based semantics. Pulses on `In_Pulse` are converted to pulses on `Out_Pulse`
 across the clock domain boundary.
 
 ## Generics
@@ -44,9 +46,10 @@ across the clock domain boundary.
 
 ### Architecture
 
-Per pulse channel, the design instantiates three independent copies (A, B, C) of the Li Fig. 14
-synchronizer, with a per-bit 2-of-3 majority voter at the output. The internal topology of each
-copy is:
+The component implements the modified short-pulse synchronizer from Li, Nelson, and Wirthlin [1]
+(Fig. 14), triplicated per Fig. 11 of the same paper. Per pulse channel, the design instantiates
+three independent copies (A, B, C) of the Li Fig. 14 synchronizer, with a per-bit 2-of-3 majority
+voter at the output. The internal topology of each copy is:
 
 ```text
                         ┌──────────────── fb ───────────────┐
@@ -80,41 +83,40 @@ The user must respect these constraints:
 1. **Input pulse width**: each input pulse must return to zero before the feedback round-trip
    completes. A single-cycle pulse on `In_Clk` is always safe. A multi-cycle pulse is fine if
    it returns to zero before the feedback arrives back at the SR latch. A sustained level
-   signal is **not** supported — use [olo_base_cc_bits](../base/olo_base_cc_bits.md) with
-   vendor TMR for level signals.
+   signal is **not** supported. Use [olo_ft_cc_bits](./olo_ft_cc_bits.md) for level signals.
 
 2. **Maximum clock ratio**: for the handshake to work correctly, the feedback round-trip time
    must exceed the input pulse duration. Approximately:
 
    ```text
-   f_out < SyncStages_g × f_in
+   f_out < SyncStages_g * f_in
    ```
 
-   For `SyncStages_g = 3` and a single-cycle input pulse, this means `f_out < 3 × f_in`.
+   For `SyncStages_g = 3` and a single-cycle input pulse, this means `f_out < 3 * f_in`.
    Exceeding this ratio causes the feedback to return while the input pulse is still high,
    creating an S/R conflict in the SR latch. If you need a larger clock ratio, increase
    `SyncStages_g` to 4.
 
 3. **Minimum spacing between consecutive pulses on the same bit**: approximately
-   `2 × SyncStages_g + 2` `Out_Clk` cycles. The next pulse must not be issued until the
+   `2 * SyncStages_g + 2` `Out_Clk` cycles. The next pulse must not be issued until the
    feedback handshake is complete (latch reset, feedback de-asserted).
 
-4. **Output pulse width**: `SyncStages_g − 1` `Out_Clk` cycles (2 cycles for `SyncStages_g = 3`,
+4. **Output pulse width**: `SyncStages_g - 1` `Out_Clk` cycles (2 cycles for `SyncStages_g = 3`,
    3 cycles for `SyncStages_g = 4`). Downstream logic must sample on any cycle while the output
    is high. If a single-cycle pulse is required at the output, add an edge detector on
    `Out_Pulse`.
 
 ### Reset Behavior
 
-Reset is crossed between the two clock domains using
-[olo_base_cc_reset](../base/olo_base_cc_reset.md), consistent with `olo_base_cc_pulse`. The
-resulting synchronized resets (`In_RstOut`, `Out_RstOut`) are exposed to the user to help with
-reset management in surrounding logic.
+Reset is crossed between the two clock domains using the TMR-hardened
+[olo_ft_cc_reset](./olo_ft_cc_reset.md), consistent with the `olo_base_cc_reset` usage in
+`olo_base_cc_pulse`. The resulting synchronized resets (`In_RstOut`, `Out_RstOut`) are exposed
+to the user to help with reset management in surrounding logic.
 
 ### Synthesis Notes
 
 - The SR latch is an **intentional VHDL latch**. Synthesis tool warnings about latch inference
-  on `LatchOut` can be ignored — the latch is a core part of the design.
+  on `LatchOut` can be ignored; the latch is a core part of the design.
 - `syn_radhardlevel = "none"` prevents vendor TMR from triplicating already-triplicated
   registers. Tools that do not recognize this attribute will simply ignore it.
 - Attributes `dont_merge`, `preserve`, `syn_preserve`, `syn_keep`, `dont_touch` are applied to

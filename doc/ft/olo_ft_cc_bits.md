@@ -6,14 +6,17 @@
 
 ## Status Information
 
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/coverage/olo_ft_cc_bits.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/branches/olo_ft_cc_bits.json?cacheSeconds=0)
+![Endpoint Badge](https://img.shields.io/endpoint?url=https://storage.googleapis.com/open-logic-badges/issues/olo_ft_cc_bits.json?cacheSeconds=0)
+
 VHDL Source: [olo_ft_cc_bits](../../src/ft/vhdl/olo_ft_cc_bits.vhd)
 
 ## Description
 
-This component is a **TMR-hardened multi-bit clock domain crossing** for level signals. It
-implements the long-pulse TMR synchronizer from Li, Nelson, and Wirthlin [1] (Fig. 12): three
-independent N-stage synchronizer chains running in parallel, with a per-bit 2-of-3 majority
-voter at the output.
+This component is a **TMR-hardened multi-bit clock domain crossing** for level signals. A single
+SEU on any flip-flop inside the crossing is masked, making the component suitable for
+radiation-hardened designs.
 
 It is the fault-tolerant counterpart to [olo_base_cc_bits](../base/olo_base_cc_bits.md) with an
 identical interface. Use it for arbitrary level signals (control bits, status flags,
@@ -42,8 +45,9 @@ Gray-coded FIFO pointers, etc.) in radiation-hardened designs. For pulse-based C
 
 ### Architecture
 
-For each bit, the design triplicates the standard synchronizer chain and combines the outputs
-with a majority voter:
+The component implements the long-pulse TMR synchronizer from Li, Nelson, and Wirthlin [1]
+(Fig. 12). For each bit, the design triplicates the standard synchronizer chain and combines the
+outputs with a majority voter:
 
 ```text
 In_Data[i] --+--> RegIn_A --> Reg0_A --> RegN_A(..) --.
@@ -68,7 +72,7 @@ uncertainty, the three copies may sample the input at different instants, leadin
 2-vs-1 disagreements during transitions. Such disagreements combined with an SEU can defeat
 the voter. This effect is analyzed in detail in [1].
 
-For **Gray-coded** signals this failure mode is benign — the two possible voted values are
+For **Gray-coded** signals this failure mode is benign: the two possible voted values are
 adjacent Gray codes, both of which the receiver handles correctly (see the discussion in
 [olo_ft_fifo_async](./olo_ft_fifo_async.md)). For **arbitrary binary-coded** level signals,
 however, a voter disagreement can produce a value that differs by any amount from the intended
@@ -82,8 +86,8 @@ general level-signal case by taking explicit control of the triplication and the
   Without this, the tool would blindly triplicate the already-triplicated registers.
 - **All standard CDC attributes** from `olo_base_cc_bits` (`async_reg`, `dont_merge`,
   `preserve`, `syn_preserve`, `syn_keep`, `shreg_extract`, `syn_srlstyle`) applied to each
-  triplicated register — ensures the synthesis tool cannot merge the three copies back into a
-  single chain (which would defeat the TMR).
+  triplicated register. This ensures the synthesis tool cannot merge the three copies back into
+  a single chain (which would defeat the TMR).
 
 ### Relationship to Other Components
 
@@ -91,9 +95,9 @@ general level-signal case by taking explicit control of the triplication and the
   For most designs this is sufficient.
 - [olo_ft_cc_pulse](./olo_ft_cc_pulse.md): TMR-hardened CDC for pulses (Li Fig. 14 design).
   Use when the input is an event/pulse that must arrive exactly once at the receiver.
-- [olo_ft_fifo_async](./olo_ft_fifo_async.md): uses standard `olo_base_cc_bits` internally for
+- [olo_ft_fifo_async](./olo_ft_fifo_async.md): uses `olo_ft_cc_bits` internally for the
   Gray-coded pointer crossings. Per-bit voting on Gray codes produces only valid pointer
-  values, so `olo_ft_cc_bits` is not required there.
+  values, so the crossing is safe (see the discussion there).
 
 ## References
 
