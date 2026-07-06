@@ -75,7 +75,7 @@ entities:
         out_reduce: { Rd_Data: 32 }
 
   # ============================================================
-  # olo_ft_ram_tdp  
+  # olo_ft_ram_tdp
   # ============================================================
   - entity_name: "olo_ft_ram_tdp"
     fixed_generics:
@@ -90,7 +90,7 @@ entities:
       cologne: "TDP not supported on Cologne Chip FPGAs"
 
   # ============================================================
-  # olo_ft_fifo_sync  
+  # olo_ft_fifo_sync
   # ============================================================
   - entity_name: "olo_ft_fifo_sync"
     fixed_generics:

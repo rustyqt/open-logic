@@ -87,12 +87,12 @@ architecture rtl of olo_ft_fifo_packet is
     -- Sideband bundle width: {EccSec, EccDed, Last, Size, Data}
     constant PlWidth_c       : positive := Width_g + 2 + 1 + SizeWidth_c;
 
-    -- Encoder ⇄ FIFO
+    -- Encoder -> FIFO
     signal EncOut_Codeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal EncOut_Valid    : std_logic;
     signal EncOut_Ready    : std_logic;
 
-    -- FIFO ⇄ decode + output pipeline
+    -- FIFO -> decode + output pipeline
     signal Fifo_OutData  : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal Fifo_OutValid : std_logic;
     signal Fifo_OutReady : std_logic;

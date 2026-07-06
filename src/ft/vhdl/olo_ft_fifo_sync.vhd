@@ -78,12 +78,12 @@ architecture rtl of olo_ft_fifo_sync is
 
     constant CodewordWidth_c : positive := eccCodewordWidth(Width_g);
 
-    -- Encoder ⇄ FIFO interface
+    -- Encoder -> FIFO interface
     signal EncOut_Codeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal EncOut_Valid    : std_logic;
     signal EncOut_Ready    : std_logic;
 
-    -- FIFO ⇄ decoder interface
+    -- FIFO -> decoder interface
     signal FifoOut_Codeword : std_logic_vector(CodewordWidth_c - 1 downto 0);
     signal FifoOut_Valid    : std_logic;
     signal FifoOut_Ready    : std_logic;
