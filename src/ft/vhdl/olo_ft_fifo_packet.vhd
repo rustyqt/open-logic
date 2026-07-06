@@ -10,10 +10,7 @@
 -- Double Error Detection) Hamming code. Wraps olo_base_fifo_packet with a wider
 -- internal word to store parity bits alongside data. The ECC is transparent
 -- to the user: data is encoded on write and decoded/corrected on read.
---
--- Note: In DROP_ONLY mode, the In_Last flag is stored alongside encoded data
--- in the RAM but is NOT covered by the ECC parity. In FULL mode, In_Last is
--- stored in a separate internal FIFO (also not ECC-protected).
+-- Note that the packet framing sidebands are not ECC-protected (see documentation).
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_fifo_packet.md
