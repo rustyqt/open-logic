@@ -114,6 +114,15 @@ package olo_test_ft_pkg is
         message    : in string;
         last       : in std_logic := '1');
 
+    -- Compute the decoder's deterministic outcome for a data word stored with the given flip
+    -- pattern: the (possibly SEC-corrected) output data and the SEC/DED flags.
+    procedure ft_expected_beat (
+        data        : in std_logic_vector;
+        flip_bits   : in std_logic_vector;
+        exp_data    : out std_logic_vector;
+        exp_ecc_sec : out std_logic;
+        exp_ecc_ded : out std_logic);
+
 end package;
 
 ---------------------------------------------------------------------------------------------------
@@ -300,18 +309,32 @@ package body olo_test_ft_pkg is
         flip_bits  : in std_logic_vector;
         message    : in string;
         last       : in std_logic := '1') is
-        variable codeword_v  : std_logic_vector(flip_bits'length - 1 downto 0);
-        variable syn_par_v   : std_logic_vector(eccParityBits(data'length) downto 0);
         variable exp_data_v  : std_logic_vector(data'length - 1 downto 0);
+        variable exp_sec_v   : std_logic;
+        variable exp_ded_v   : std_logic;
         variable exp_tuser_v : std_logic_vector(1 downto 0);
     begin
-        codeword_v  := eccEncode(data) xor flip_bits;
-        syn_par_v   := eccSyndromeAndParity(codeword_v, data'length);
-        exp_data_v  := eccCorrectData(codeword_v, syn_par_v, data'length);
-        exp_tuser_v := eccSecError(syn_par_v) & eccDedError(syn_par_v);
+        ft_expected_beat(data, flip_bits, exp_data_v, exp_sec_v, exp_ded_v);
+        exp_tuser_v := exp_sec_v & exp_ded_v;
 
         check_axi_stream(net, slave, exp_data_v, tlast => last, tuser => exp_tuser_v,
             msg                                        => message, blocking => false);
+    end procedure;
+
+    procedure ft_expected_beat (
+        data        : in std_logic_vector;
+        flip_bits   : in std_logic_vector;
+        exp_data    : out std_logic_vector;
+        exp_ecc_sec : out std_logic;
+        exp_ecc_ded : out std_logic) is
+        variable codeword_v : std_logic_vector(flip_bits'length - 1 downto 0);
+        variable syn_par_v  : std_logic_vector(eccParityBits(data'length) downto 0);
+    begin
+        codeword_v  := eccEncode(data) xor flip_bits;
+        syn_par_v   := eccSyndromeAndParity(codeword_v, data'length);
+        exp_data    := eccCorrectData(codeword_v, syn_par_v, data'length);
+        exp_ecc_sec := eccSecError(syn_par_v);
+        exp_ecc_ded := eccDedError(syn_par_v);
     end procedure;
 
 end package body;
