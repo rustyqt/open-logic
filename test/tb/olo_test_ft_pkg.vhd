@@ -7,8 +7,8 @@
 -- Description
 ---------------------------------------------------------------------------------------------------
 -- Shared test procedures for the fault-tolerant (ft) area test benches: user-port write helpers
--- and ECC read checks for the ECC RAM wrappers, plus scrub-pass synchronization helpers for the
--- scrubbed variants.
+-- and ECC read checks for the ECC RAM wrappers, scrub-pass synchronization helpers for the
+-- scrubbed variants, and AXI-Stream push/expect helpers for the ECC FIFO wrappers.
 
 ---------------------------------------------------------------------------------------------------
 -- Libraries
@@ -19,9 +19,12 @@ library ieee;
 
 library vunit_lib;
     context vunit_lib.vunit_context;
+    context vunit_lib.com_context;
+    context vunit_lib.vc_context;
 
 library olo;
     use olo.olo_base_pkg_math.all;
+    use olo.olo_ft_pkg_ecc.all;
 
 ---------------------------------------------------------------------------------------------------
 -- Package Header
@@ -86,6 +89,30 @@ package olo_test_ft_pkg is
         signal pass_done : in std_logic;
         signal watched   : in std_logic;
         watched_count    : out natural);
+
+    -- Push one beat through an AXI-Stream master VC. A non-zero flip_bits pattern first arms the
+    -- DUT's error-injection latch (drained handshake, one-cycle inj_valid pulse) so the flip is
+    -- applied to exactly this beat's codeword.
+    procedure ft_push_beat (
+        signal net       : inout network_t;
+        master           : in axi_stream_master_t;
+        signal clk       : in std_logic;
+        signal inj_flip  : out std_logic_vector;
+        signal inj_valid : out std_logic;
+        data             : in std_logic_vector;
+        flip_bits        : in std_logic_vector;
+        last             : in std_logic := '1');
+
+    -- Queue the expected (data, tuser, tlast) outcome of a beat pushed with the given flip
+    -- pattern: the decoder's deterministic output and the SEC/DED flags are computed from the
+    -- flipped codeword, so the check succeeds even for DED beats.
+    procedure ft_expect_beat (
+        signal net : inout network_t;
+        slave      : in axi_stream_slave_t;
+        data       : in std_logic_vector;
+        flip_bits  : in std_logic_vector;
+        message    : in string;
+        last       : in std_logic := '1');
 
 end package;
 
@@ -223,6 +250,68 @@ package body olo_test_ft_pkg is
         end loop;
 
         watched_count := watched_cnt_v;
+    end procedure;
+
+    procedure ft_push_beat (
+        signal net       : inout network_t;
+        master           : in axi_stream_master_t;
+        signal clk       : in std_logic;
+        signal inj_flip  : out std_logic_vector;
+        signal inj_valid : out std_logic;
+        data             : in std_logic_vector;
+        flip_bits        : in std_logic_vector;
+        last             : in std_logic := '1') is
+        variable inject_v : boolean := false;
+    begin
+
+        for i in flip_bits'range loop
+            if flip_bits(i) = '1' then
+                inject_v := true;
+            end if;
+        end loop;
+
+        if inject_v then
+            -- Drain so no in-flight handshake races the latch load
+            wait_until_idle(net, as_sync(master));
+            wait until rising_edge(clk);
+
+            -- One-cycle pulse: load the latch with flip_bits
+            inj_flip  <= flip_bits;
+            inj_valid <= '1';
+            wait until rising_edge(clk);
+            inj_valid <= '0';
+
+            push_axi_stream(net, master, data, tlast => last);
+
+            -- Hold inj_flip stable until the push fires; the latch is cleared by the handshake
+            wait_until_idle(net, as_sync(master));
+            wait until rising_edge(clk);
+            inj_flip <= (inj_flip'range => '0');
+        else
+            push_axi_stream(net, master, data, tlast => last);
+        end if;
+
+    end procedure;
+
+    procedure ft_expect_beat (
+        signal net : inout network_t;
+        slave      : in axi_stream_slave_t;
+        data       : in std_logic_vector;
+        flip_bits  : in std_logic_vector;
+        message    : in string;
+        last       : in std_logic := '1') is
+        variable codeword_v  : std_logic_vector(flip_bits'length - 1 downto 0);
+        variable syn_par_v   : std_logic_vector(eccParityBits(data'length) downto 0);
+        variable exp_data_v  : std_logic_vector(data'length - 1 downto 0);
+        variable exp_tuser_v : std_logic_vector(1 downto 0);
+    begin
+        codeword_v  := eccEncode(data) xor flip_bits;
+        syn_par_v   := eccSyndromeAndParity(codeword_v, data'length);
+        exp_data_v  := eccCorrectData(codeword_v, syn_par_v, data'length);
+        exp_tuser_v := eccSecError(syn_par_v) & eccDedError(syn_par_v);
+
+        check_axi_stream(net, slave, exp_data_v, tlast => last, tuser => exp_tuser_v,
+            msg                                        => message, blocking => false);
     end procedure;
 
 end package body;
