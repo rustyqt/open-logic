@@ -116,6 +116,8 @@ entities:
     fixed_generics:
       Depth_g: 256
     configurations:
+      # Default SmallRamStyle_g="registers": synthesizes the FF-based packet-boundary FIFO
+      # (the fault-tolerant configuration, coverable by vendor TMR)
       - name: "w32-ecc1"
         generics: { Width_g: 32, EccPipeline_g: 1 }
 

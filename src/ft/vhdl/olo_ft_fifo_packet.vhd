@@ -10,7 +10,8 @@
 -- Double Error Detection) Hamming code. Wraps olo_base_fifo_packet with a wider
 -- internal word to store parity bits alongside data. The ECC is transparent
 -- to the user: data is encoded on write and decoded/corrected on read.
--- Note that the packet framing sidebands are not ECC-protected (see documentation).
+-- Note that FeatureSet_g=DROP_ONLY is not supported for fault-tolerance reasons
+-- (see documentation).
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_fifo_packet.md
@@ -27,6 +28,7 @@ library ieee;
 
 library work;
     use work.olo_base_pkg_math.all;
+    use work.olo_base_pkg_string.all;
     use work.olo_ft_pkg_ecc.all;
 
 ---------------------------------------------------------------------------------------------------
@@ -39,7 +41,7 @@ entity olo_ft_fifo_packet is
         FeatureSet_g       : string                            := "FULL";
         RamStyle_g         : string                            := "auto";
         RamBehavior_g      : string                            := "RBW";
-        SmallRamStyle_g    : string                            := "auto";
+        SmallRamStyle_g    : string                            := "registers";
         SmallRamBehavior_g : string                            := "same";
         MaxPackets_g       : positive range 2 to positive'high := 17;
         EccPipeline_g      : natural range 0 to 2              := 0
@@ -79,6 +81,7 @@ end entity;
 ---------------------------------------------------------------------------------------------------
 architecture rtl of olo_ft_fifo_packet is
 
+    constant EntityName_c    : string   := "olo_ft_fifo_packet";
     constant CodewordWidth_c : positive := eccCodewordWidth(Width_g);
     constant SizeWidth_c     : positive := log2ceil(Depth_g + 1);
     -- Sideband bundle width: {EccSec, EccDed, Last, Size, Data}
@@ -105,6 +108,15 @@ architecture rtl of olo_ft_fifo_packet is
     signal Pl_OutData : std_logic_vector(PlWidth_c - 1 downto 0);
 
 begin
+
+    -- In DROP_ONLY mode the base FIFO stores the In_Last flag inside the main RAM, where it is
+    -- not covered by the ECC parity. Only the feature sets that keep the main RAM a pure ECC
+    -- codeword (packet boundaries in the separate small FIFO) are supported.
+    assert not compareNoCase(FeatureSet_g, "drop_only")
+        report errorMessage(EntityName_c, "FeatureSet_g=DROP_ONLY is not supported " &
+               "(In_Last would be stored in RAM outside the ECC codeword). " &
+               "Use FULL or DROP_SKIP_ONLY.")
+        severity error;
 
     -- Encoder: codec owns the injection latch. AXI-S handshake propagates user In_Valid/In_Ready
     -- through to the FIFO's In_Valid/In_Ready.

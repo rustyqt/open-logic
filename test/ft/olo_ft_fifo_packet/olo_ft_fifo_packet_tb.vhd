@@ -175,9 +175,10 @@ begin
 
             ---------------------------------------------------------------------------------------
             elsif run("Drop") then
-                -- In_Drop is passed through the wrapper. Hold it high for a whole packet (level,
-                -- so no cycle alignment against the stalling master is needed): the packet must
-                -- be dropped and only the following clean packet may reach the output.
+                -- In_Drop is passed through the wrapper (available in all supported feature
+                -- sets). Hold it high for a whole packet (level, so no cycle alignment against
+                -- the stalling master is needed): the packet must be dropped and only the
+                -- following clean packet may reach the output.
                 Flip_v := (others => '0');
 
                 In_Drop <= '1';
@@ -234,7 +235,7 @@ begin
 
                     ft_expect_beat(net, AxisSlave_c, toUslv(16#B0#, Width_g), Flip_v, "Repeat follower", '1');
                 else
-                    -- DROP_ONLY (no Out_Repeat) or EccPipeline_g > 0 (see above): nothing to test
+                    -- DROP_SKIP_ONLY (no Out_Repeat) or EccPipeline_g > 0 (see above): no test
                     null;
                 end if;
 

@@ -21,17 +21,22 @@ side, packet skip/repeat on the read side) match [olo_base_fifo_packet](../base/
 The ECC is transparent to the user: data is automatically encoded on write and decoded/corrected on read.
 Error status flags indicate whether a single-bit error was corrected or a double-bit error was detected.
 
+In contrast to the base entity, `FeatureSet_g = "DROP_ONLY"` is **not supported** and rejected at
+elaboration: in that mode the packet-framing _In_Last_ flag would be stored inside the main RAM where it is
+not covered by the ECC parity (see
+[Fault-Tolerant Storage of Packet Boundaries](#fault-tolerant-storage-of-packet-boundaries)).
+
 ## Generics
 
 | Name               | Type     | Default | Description                                                  |
 | :----------------- | :------- | ------- | :----------------------------------------------------------- |
 | Width_g            | positive | -       | Number of data bits per FIFO entry. The internal FIFO is wider to accommodate ECC parity bits. |
 | Depth_g            | positive | -       | Number of entries (must be a power of two)                   |
-| FeatureSet_g       | string   | "FULL"  | "FULL" or "DROP_ONLY"                                        |
+| FeatureSet_g       | string   | "FULL"  | "FULL" or "DROP_SKIP_ONLY". "DROP_ONLY" is **not supported** and rejected at elaboration (see [Fault-Tolerant Storage of Packet Boundaries](#fault-tolerant-storage-of-packet-boundaries)). |
 | RamStyle_g         | string   | "auto"  | Controls the RAM implementation resource                     |
 | RamBehavior_g      | string   | "RBW"   | Controls the RAM behavior. "RBW" or "WBR"                    |
-| SmallRamStyle_g    | string   | "auto"  | RAM style for the internal packet-end FIFO                   |
-| SmallRamBehavior_g | string   | "same"  | RAM behavior for the internal packet-end FIFO                |
+| SmallRamStyle_g    | string   | "registers" | RAM style for the internal packet-boundary FIFO. The default "registers" keeps the packet boundaries in flip-flops so they can be covered by vendor TMR (see [Fault-Tolerant Storage of Packet Boundaries](#fault-tolerant-storage-of-packet-boundaries)). Overriding this to a RAM primitive re-introduces non-ECC-protected RAM state and is discouraged for fault-tolerant designs. |
+| SmallRamBehavior_g | string   | "same"  | RAM behavior for the internal packet-boundary FIFO           |
 | MaxPackets_g       | positive | 17      | Maximum number of packets in the FIFO (min 2)                |
 | EccPipeline_g      | natural  | 0       | Number of pipeline stages between ECC decode and the output (range 0..2, implemented with [olo_base_pl_stage](../base/olo_base_pl_stage.md)). 0 = combinational output. |
 
@@ -62,10 +67,10 @@ Error status flags indicate whether a single-bit error was corrected or a double
 | Out_Valid  | out    | 1                       | N/A     | Output valid (AXI-S handshaking)                             |
 | Out_Ready  | in     | 1                       | '1'     | Output ready (AXI-S handshaking)                             |
 | Out_Data   | out    | _Width_g_               | N/A     | Output data (corrected if a single-bit error was detected)   |
-| Out_Size   | out    | _ceil(log2(Depth_g+1))_ | N/A     | Packet size in words (FULL mode only)                        |
+| Out_Size   | out    | _ceil(log2(Depth_g+1))_ | N/A     | Packet size in words                                         |
 | Out_Last   | out    | 1                       | N/A     | End of packet                                                |
-| Out_Next   | in     | 1                       | '0'     | Skip to the next packet (FULL mode only). See Constraints regarding _EccPipeline_g_. |
-| Out_Repeat | in     | 1                       | '0'     | Repeat the current packet (FULL mode only). See Constraints regarding _EccPipeline_g_. |
+| Out_Next   | in     | 1                       | '0'     | Skip to the next packet. See Constraints regarding _EccPipeline_g_. |
+| Out_Repeat | in     | 1                       | '0'     | Repeat the current packet (FULL feature set only). See Constraints regarding _EccPipeline_g_. |
 | Out_EccSec | out    | 1                       | N/A     | Single error corrected flag. Time-aligned with _Out_Data_.   |
 | Out_EccDed | out    | 1                       | N/A     | Double error detected flag. Read data is unreliable. Time-aligned with _Out_Data_. |
 
@@ -98,7 +103,8 @@ The FIFO is a pipeline of four Open Logic entities:
    (combinational, the AXI-S handshake passes through).
 2. [olo_base_fifo_packet](../base/olo_base_fifo_packet.md) stores the codeword (entity configured with a
    codeword-wide word). _In_Last_ / _In_Drop_ / _Out_Next_ / _Out_Repeat_ and the status outputs connect
-   directly to the base FIFO.
+   directly to the base FIFO. The packet boundaries live in the base FIFO's internal packet-boundary FIFO,
+   implemented in flip-flops by default (_SmallRamStyle_g_ = "registers").
 3. [olo_ft_ecc_decode](./olo_ft_ecc_decode.md) decodes and corrects each beat combinationally on the read
    side.
 4. [olo_base_pl_stage](../base/olo_base_pl_stage.md) (with `EccPipeline_g` stages) registers the decoded
@@ -109,6 +115,27 @@ Because encoding happens before, and decoding after, all storage elements, the c
 end-to-end through the FIFO.
 
 See [olo_base_fifo_packet](../base/olo_base_fifo_packet.md) for detailed FIFO behavior.
+
+### Fault-Tolerant Storage of Packet Boundaries
+
+The design goal for the _ft_ area is that **no RAM-resident state is outside the ECC protection**: RAM
+cells hold their content for arbitrarily long and cannot be covered by vendor TMR, so anything stored in
+RAM must be part of an ECC codeword. For the packet FIFO this drives two decisions:
+
+- **`FeatureSet_g = "DROP_ONLY"` is rejected at elaboration.** In that mode the base FIFO widens the main
+  RAM by one bit and stores the _In_Last_ flag of every word alongside the data, because it keeps no
+  per-packet boundary records elsewhere. That bit would sit inside the RAM but outside the ECC codeword: a
+  single upset would silently split or merge packets (no _Out_EccDed_ indication) and could desynchronize
+  the FIFO's packet accounting. In the supported feature sets ("FULL", "DROP_SKIP_ONLY") the main RAM
+  holds pure ECC codewords only.
+- **The packet-boundary FIFO defaults to `SmallRamStyle_g = "registers"`.** In the supported feature sets
+  the packet-end addresses (which drive _Out_Last_, _Out_Size_ and the _Out_Next_ jump target) are stored
+  in a small internal FIFO. With the "registers" style this storage is implemented in flip-flops, which
+  vendor TMR (`syn_radhardlevel = "tmr"`) covers like all other control logic. Verify in the synthesis
+  report that no RAM primitive is inferred for it on your target tool (on tools where "registers" is not a
+  recognized RAM-style value, e.g. Intel Quartus which uses "logic", override the generic accordingly).
+  Overriding _SmallRamStyle_g_ to a block/distributed RAM saves a few hundred flip-flops but re-introduces
+  non-ECC-protected RAM state and is therefore discouraged for fault-tolerant designs.
 
 ### ECC Overhead, Error Injection and Status Flags
 
@@ -121,10 +148,10 @@ See the corresponding sections in
 
 ### Constraints
 
-- Only the data words are ECC-protected. The packet framing and size sidebands are **not** covered by the
-  ECC parity: in DROP_ONLY mode the _In_Last_ flag is stored alongside the encoded data in the RAM, in FULL
-  mode _In_Last_ and the packet sizes are handled via a separate internal FIFO. An SEU flipping such a bit
-  would corrupt packet framing (but not data content).
+- The packet-boundary records (packet-end addresses, from which _Out_Last_ and _Out_Size_ are derived) are
+  not part of the ECC codeword. They are kept in flip-flops by default (see
+  [Fault-Tolerant Storage of Packet Boundaries](#fault-tolerant-storage-of-packet-boundaries)) and must be
+  covered by vendor TMR as part of the surrounding radiation-hardened design, like all other control logic.
 - _Out_Next_ and _Out_Repeat_ are sampled on the **internal** FIFO read handshake. With
   `EccPipeline_g > 0` the internal handshake runs ahead of the beats observed on the output ports
   (bounded by the output pipeline's buffer capacity), so users driving _Out_Next_ / _Out_Repeat_ based on

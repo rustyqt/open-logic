@@ -167,7 +167,8 @@ def add_configs(olo_tb):
     tb = olo_tb.test_bench('olo_ft_fifo_packet_tb')
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
-    for FeatureSet in ['FULL', 'DROP_ONLY']:
+    # DROP_ONLY is rejected by the entity (In_Last would be stored in RAM outside the ECC codeword)
+    for FeatureSet in ['FULL', 'DROP_SKIP_ONLY']:
         named_config(tb, {'FeatureSet_g': FeatureSet})
     # Sweep the full entity range (0..2), matching the ft RAM test benches
     for EccPipeline in [0, 1, 2]:
