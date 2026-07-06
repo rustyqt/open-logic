@@ -159,7 +159,8 @@ def add_configs(olo_tb):
         named_config(tb, {'Width_g': Width})
     for Opt in ['SPEED', 'LATENCY']:
         named_config(tb, {'Optimization_g': Opt})
-    for EccPipeline in [0, 1]:
+    # Sweep the full entity range (0..2), matching the ft RAM test benches
+    for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
 
     ### olo_ft_fifo_packet ###
