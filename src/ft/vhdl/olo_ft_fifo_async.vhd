@@ -7,13 +7,8 @@
 -- Description
 ---------------------------------------------------------------------------------------------------
 -- ECC-protected asynchronous FIFO using SECDED (Single Error Correction, Double Error
--- Detection) Hamming code. Data is encoded on write and decoded/corrected on read, so the
--- codeword is protected end-to-end through the FIFO.
---
--- This entity is a peer of olo_base_fifo_async: it reuses the shared control core
--- olo_private_fifo_async_core, but supplies TMR-hardened CDC primitives (olo_ft_cc_bits /
--- olo_ft_cc_reset) for the Gray-pointer and reset crossings, making the pointer crossings
--- single-SEU immune. The storage is a plain olo_base_ram_sdp holding the codeword.
+-- Detection) Hamming code, with TMR-hardened Gray-pointer and reset crossings. Data is
+-- encoded on write and decoded/corrected on read; the interface matches olo_base_fifo_async.
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_fifo_async.md
