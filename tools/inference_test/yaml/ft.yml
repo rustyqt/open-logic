@@ -122,6 +122,23 @@ entities:
         generics: { Width_g: 32, EccPipeline_g: 1 }
 
   # ============================================================
+  # olo_ft_delay
+  # ============================================================
+  - entity_name: "olo_ft_delay"
+    configurations:
+      # BRAM-backed delay with the registered decode output
+      - name: "w32-d256-ecc1"
+        generics: { Width_g: 32, Delay_g: 256, EccPipeline_g: 1 }
+
+  # ============================================================
+  # olo_ft_delay_cfg
+  # ============================================================
+  - entity_name: "olo_ft_delay_cfg"
+    configurations:
+      - name: "w32-max256-ecc1"
+        generics: { Width_g: 32, MaxDelay_g: 256, EccPipeline_g: 1 }
+
+  # ============================================================
   # olo_ft_cc_pulse
   # ============================================================
   - entity_name: "olo_ft_cc_pulse"

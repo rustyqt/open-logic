@@ -38,6 +38,7 @@ Note that components are split into categories.
     - [Clock Crossings (olo\_ft\_cc\_\<...\>)](#clock-crossings-olo_ft_cc_)
     - [RAM Implementations (olo\_ft\_ram\_\<...\>)](#ram-implementations-olo_ft_ram_)
     - [FIFO Implementations (olo\_ft\_fifo\_\<...\>)](#fifo-implementations-olo_ft_fifo_)
+    - [Timing Related Entities (ft)](#timing-related-entities-ft)
 
 ## base
 
@@ -328,3 +329,10 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 | [olo_ft_fifo_sync](./ft/olo_ft_fifo_sync.md)         | ECC-protected synchronous FIFO (single clock)               |
 | [olo_ft_fifo_async](./ft/olo_ft_fifo_async.md)       | ECC-protected asynchronous FIFO (separate write and read clocks) |
 | [olo_ft_fifo_packet](./ft/olo_ft_fifo_packet.md)     | ECC-protected packet FIFO (store and forward) with the ability to drop packets on the write side and skip or repeat packets on the read side |
+
+### Timing Related Entities (ft)
+
+| Entity                                             | Description                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| [olo_ft_delay](./ft/olo_ft_delay.md)               | ECC-protected fixed duration delay (fixed number of data-beats) |
+| [olo_ft_delay_cfg](./ft/olo_ft_delay_cfg.md)       | ECC-protected configurable duration delay (runtime configurable number of data-beats) |

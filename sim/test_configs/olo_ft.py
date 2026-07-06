@@ -174,6 +174,37 @@ def add_configs(olo_tb):
     for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
 
+    ### olo_ft_delay ###
+    tb = olo_tb.test_bench('olo_ft_delay_tb')
+    for Width in Widths:
+        named_config(tb, {'Width_g': Width})
+    # Delay sweep: wire-through, output-register-only, SRL taps and (via the default
+    # BramThreshold_g of 128) the BRAM implementation
+    for Delay in [0, 1, 2, 3, 130]:
+        named_config(tb, {'Delay_g': Delay})
+    # Explicit resource selection
+    named_config(tb, {'Delay_g': 8, 'Resource_g': 'BRAM'})
+    named_config(tb, {'Delay_g': 8, 'Resource_g': 'SRL'})
+    named_config(tb, {'RstState_g': False})
+    # Registered decode output (sample-compensated)
+    named_config(tb, {'EccPipeline_g': 1})
+    named_config(tb, {'EccPipeline_g': 1, 'Delay_g': 1})
+    named_config(tb, {'EccPipeline_g': 1, 'Delay_g': 130})
+
+    ### olo_ft_delay_cfg ###
+    tb = olo_tb.test_bench('olo_ft_delay_cfg_tb')
+    for Width in Widths:
+        named_config(tb, {'Width_g': Width})
+    # SRL-only (MaxDelay_g <= 3) and large-RAM configurations
+    for MaxDelay in [3, 256]:
+        named_config(tb, {'MaxDelay_g': MaxDelay})
+    named_config(tb, {'SupportZero_g': True})
+    named_config(tb, {'RstState_g': False})
+    # Registered decode output (dynamic sample compensation)
+    named_config(tb, {'EccPipeline_g': 1})
+    named_config(tb, {'EccPipeline_g': 1, 'SupportZero_g': True})
+    named_config(tb, {'EccPipeline_g': 1, 'MaxDelay_g': 256})
+
     ### olo_ft_cc_pulse ###
     tb = olo_tb.test_bench('olo_ft_cc_pulse_tb')
     # Clock ratios within the valid range for the Fig. 14 pulse handshake.
