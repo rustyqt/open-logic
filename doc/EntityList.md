@@ -39,6 +39,7 @@ Note that components are split into categories.
     - [RAM Implementations (olo\_ft\_ram\_\<...\>)](#ram-implementations-olo_ft_ram_)
     - [FIFO Implementations (olo\_ft\_fifo\_\<...\>)](#fifo-implementations-olo_ft_fifo_)
     - [Timing Related Entities (ft)](#timing-related-entities-ft)
+    - [AXI Interfaces (olo\_ft\_axi\_\<...\>)](#axi-interfaces-olo_ft_axi_)
 
 ## base
 
@@ -336,3 +337,10 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 | -------------------------------------------------- | ------------------------------------------------------------ |
 | [olo_ft_delay](./ft/olo_ft_delay.md)               | ECC-protected fixed duration delay (fixed number of data-beats) |
 | [olo_ft_delay_cfg](./ft/olo_ft_delay_cfg.md)       | ECC-protected configurable duration delay (runtime configurable number of data-beats) |
+
+### AXI Interfaces (olo_ft_axi_\<...\>)
+
+| Entity                                                             | Description                                                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [olo_ft_axi_master_simple](./ft/olo_ft_axi_master_simple.md)       | ECC-protected AXI4 master (simple interface, aligned transfers) |
+| [olo_ft_axi_master_full](./ft/olo_ft_axi_master_full.md)           | ECC-protected AXI4 master with unaligned-access support and width conversion |

@@ -69,7 +69,9 @@ src/base/vhdl/olo_base_arb_wrr.vhd
 src/axi/vhdl/olo_axi_pl_stage.vhd
 src/axi/vhdl/olo_axi_pkg_protocol.vhd
 src/axi/vhdl/olo_axi_master_simple.vhd
+src/ft/vhdl/olo_ft_axi_master_simple.vhd
 src/axi/vhdl/olo_axi_master_full.vhd
+src/ft/vhdl/olo_ft_axi_master_full.vhd
 src/axi/vhdl/olo_axi_lite_slave.vhd
 3rdParty/en_cl_fix/hdl/en_cl_fix_private_pkg.vhd
 3rdParty/en_cl_fix/hdl/en_cl_fix_pkg.vhd

@@ -174,6 +174,24 @@ def add_configs(olo_tb):
     for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
 
+    ### olo_ft_axi_master_simple ###
+    tb = olo_tb.test_bench('olo_ft_axi_master_simple_tb')
+    for Width in [16, 32]:
+        named_config(tb, {'AxiDataWidth_g': Width})
+    for EccPipeline in [1, 2]:
+        named_config(tb, {'EccPipeline_g': EccPipeline})
+    named_config(tb, {'ImplRead_g': False})
+    named_config(tb, {'ImplWrite_g': False})
+
+    ### olo_ft_axi_master_full ###
+    tb = olo_tb.test_bench('olo_ft_axi_master_full_tb')
+    for Width in [16, 32]:
+        named_config(tb, {'AxiDataWidth_g': Width})
+    for EccPipeline in [1, 2]:
+        named_config(tb, {'EccPipeline_g': EccPipeline})
+    named_config(tb, {'ImplRead_g': False})
+    named_config(tb, {'ImplWrite_g': False})
+
     ### olo_ft_delay ###
     tb = olo_tb.test_bench('olo_ft_delay_tb')
     for Width in Widths:
