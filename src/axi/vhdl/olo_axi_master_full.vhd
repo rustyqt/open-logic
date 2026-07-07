@@ -49,7 +49,8 @@ entity olo_axi_master_full is
         UserDataWidth_g            : natural                 := 32;
         ImplRead_g                 : boolean                 := true;
         ImplWrite_g                : boolean                 := true;
-        RamBehavior_g              : string                  := "RBW"
+        RamBehavior_g              : string                  := "RBW";
+        RamStyle_g                 : string                  := "auto"
     );
     port (
         -- Control Signals
@@ -615,7 +616,8 @@ begin
             DataFifoDepth_g             => DataFifoDepth_g,
             ImplRead_g                  => ImplRead_g,
             ImplWrite_g                 => ImplWrite_g,
-            RamBehavior_g               => RamBehavior_g
+            RamBehavior_g               => RamBehavior_g,
+            RamStyle_g                  => RamStyle_g
         )
         port map (
             -- Control Signals

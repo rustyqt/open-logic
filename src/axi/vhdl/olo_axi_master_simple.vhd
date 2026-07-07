@@ -47,7 +47,8 @@ entity olo_axi_master_simple is
         DataFifoDepth_g             : positive                 := 1024;
         ImplRead_g                  : boolean                  := true;
         ImplWrite_g                 : boolean                  := true;
-        RamBehavior_g               : string                   := "RBW"
+        RamBehavior_g               : string                   := "RBW";
+        RamStyle_g                  : string                   := "auto"
     );
     port (
         -- Control Signals
@@ -690,7 +691,8 @@ begin
             generic map (
                 Width_g        => BeatsBits_c,
                 Depth_g        => AxiMaxOpenTransactions_g,
-                RamBehavior_g  => RamBehavior_g
+                RamBehavior_g  => RamBehavior_g,
+                RamStyle_g     => RamStyle_g
             )
             port map (
                 Clk         => Clk,
@@ -717,7 +719,8 @@ begin
                 generic map (
                     Width_g         => Wr_Data'length + Wr_Be'length,
                     Depth_g         => DataFifoDepth_g,
-                    RamBehavior_g   => RamBehavior_g
+                    RamBehavior_g   => RamBehavior_g,
+                    RamStyle_g      => RamStyle_g
                 )
                 port map (
                     Clk         => Clk,
@@ -743,7 +746,8 @@ begin
             generic map (
                 Width_g        => 1,
                 Depth_g        => AxiMaxOpenTransactions_g,
-                RamBehavior_g  => RamBehavior_g
+                RamBehavior_g  => RamBehavior_g,
+                RamStyle_g     => RamStyle_g
             )
             port map (
                 Clk         => Clk,
@@ -783,7 +787,8 @@ begin
                 generic map (
                     Width_g        => Rd_Data'length+1,
                     Depth_g        => DataFifoDepth_g,
-                    RamBehavior_g  => RamBehavior_g
+                    RamBehavior_g  => RamBehavior_g,
+                    RamStyle_g     => RamStyle_g
                 )
                 port map (
                     Clk         => Clk,
@@ -812,7 +817,8 @@ begin
             generic map (
                 Width_g        => 1,
                 Depth_g        => AxiMaxOpenTransactions_g,
-                RamBehavior_g  => RamBehavior_g
+                RamBehavior_g  => RamBehavior_g,
+                RamStyle_g     => RamStyle_g
             )
             port map (
                 Clk         => Clk,
