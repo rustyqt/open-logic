@@ -41,6 +41,7 @@ Note that components are split into categories.
     - [FIFO Implementations (olo\_ft\_fifo\_\<...\>)](#fifo-implementations-olo_ft_fifo_)
     - [Timing Related Entities (ft)](#timing-related-entities-ft)
     - [AXI Interfaces (olo\_ft\_axi\_\<...\>)](#axi-interfaces-olo_ft_axi_)
+    - [Private Entities](#private-entities)
 
 ## base
 
@@ -359,3 +360,12 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 | ------------------------------------------------------------------ | ------------------------------------------------------------ |
 | [olo_ft_axi_master_simple](./ft/olo_ft_axi_master_simple.md)       | ECC-protected AXI4 master (simple interface, aligned transfers) |
 | [olo_ft_axi_master_full](./ft/olo_ft_axi_master_full.md)           | ECC-protected AXI4 master with unaligned-access support and width conversion |
+
+### Private Entities
+
+Internal building blocks instantiated by other ft entities. They are documented for reference but not
+intended for direct end-user instantiation.
+
+| Entity                                                           | Description                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| [olo_ft_private_scrubber](./ft/olo_ft_private_scrubber.md)       | Opportunistic memory-scrub engine (FSM and user/scrub arbitration) shared by the two scrub RAM wrappers |
