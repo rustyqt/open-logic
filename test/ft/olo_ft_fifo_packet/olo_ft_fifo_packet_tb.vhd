@@ -116,30 +116,30 @@ begin
             if run("Basic") then
                 -- Three-word packet, no errors. TLAST asserted on the third beat.
                 Flip_v := (others => '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(10, Width_g), Flip_v, '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(20, Width_g), Flip_v, '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(30, Width_g), Flip_v, '1');
-                ft_expect_beat(net, AxisSlave_c, toUslv(10, Width_g), Flip_v, "Basic[0]", '0');
-                ft_expect_beat(net, AxisSlave_c, toUslv(20, Width_g), Flip_v, "Basic[1]", '0');
-                ft_expect_beat(net, AxisSlave_c, toUslv(30, Width_g), Flip_v, "Basic[2] last", '1');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(10, Width_g), Flip_v, '0');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(20, Width_g), Flip_v, '0');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(30, Width_g), Flip_v, '1');
+                ftExpectBeat(net, AxisSlave_c, toUslv(10, Width_g), Flip_v, "Basic[0]", '0');
+                ftExpectBeat(net, AxisSlave_c, toUslv(20, Width_g), Flip_v, "Basic[1]", '0');
+                ftExpectBeat(net, AxisSlave_c, toUslv(30, Width_g), Flip_v, "Basic[2] last", '1');
 
             ---------------------------------------------------------------------------------------
             elsif run("EccSec") then
                 -- Two-word packet, single-bit flip on the first word.
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#AB#, Width_g),
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#AB#, Width_g),
                          setBits(0, CodewordWidth_c), '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#CD#, Width_g),
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#CD#, Width_g),
                          (Flip_v'range => '0'), '1');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#AB#, Width_g), setBits(0, CodewordWidth_c), "Sec[0]", '0');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#CD#, Width_g), (Flip_v'range => '0'), "Sec[1] last", '1');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#AB#, Width_g), setBits(0, CodewordWidth_c), "Sec[0]", '0');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#CD#, Width_g), (Flip_v'range => '0'), "Sec[1] last", '1');
 
             ---------------------------------------------------------------------------------------
             elsif run("EccDed") then
                 -- Single-word packet with double-bit flip.
                 Flip_v := setBits((0, 1), CodewordWidth_c);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#EF#, Width_g),
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#EF#, Width_g),
                          Flip_v, '1');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#EF#, Width_g), Flip_v, "Ded[0] last", '1');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#EF#, Width_g), Flip_v, "Ded[0] last", '1');
 
             ---------------------------------------------------------------------------------------
             elsif run("SecAllBits") then
@@ -147,9 +147,9 @@ begin
                 -- Every codeword bit position, one-word packets.
                 for bitIdx in 0 to CodewordWidth_c - 1 loop
                     Flip_v := setBits(bitIdx, CodewordWidth_c);
-                    ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#A5#, Width_g),
+                    ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#A5#, Width_g),
                              Flip_v, '1');
-                    ft_expect_beat(net, AxisSlave_c, toUslv(16#A5#, Width_g), Flip_v, "SecAllBits flip " & integer'image(bitIdx), '1');
+                    ftExpectBeat(net, AxisSlave_c, toUslv(16#A5#, Width_g), Flip_v, "SecAllBits flip " & integer'image(bitIdx), '1');
                     wait_until_idle(net, as_sync(AxisSlave_c));
                 end loop;
 
@@ -167,9 +167,9 @@ begin
                                                           CodewordWidth_c / 2 + 1), CodewordWidth_c);
                     end case;
 
-                    ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#5A#, Width_g),
+                    ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#5A#, Width_g),
                              Flip_v, '1');
-                    ft_expect_beat(net, AxisSlave_c, toUslv(16#5A#, Width_g), Flip_v, "DedPair " & integer'image(pair), '1');
+                    ftExpectBeat(net, AxisSlave_c, toUslv(16#5A#, Width_g), Flip_v, "DedPair " & integer'image(pair), '1');
                     wait_until_idle(net, as_sync(AxisSlave_c));
                 end loop;
 
@@ -182,20 +182,20 @@ begin
                 Flip_v := (others => '0');
 
                 In_Drop <= '1';
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#D0#, Width_g), Flip_v, '0');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#D0#, Width_g), Flip_v, '0');
                 wait_until_idle(net, as_sync(AxisMaster_c));
                 wait until rising_edge(Clk);
                 check_equal(In_IsDropped, '1', "In_IsDropped must be asserted for the dropped packet");
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#D1#, Width_g), Flip_v, '1');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#D1#, Width_g), Flip_v, '1');
                 wait_until_idle(net, as_sync(AxisMaster_c));
                 wait until rising_edge(Clk);
                 In_Drop <= '0';
 
                 -- Only the clean packet may come out
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#C0#, Width_g), Flip_v, '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#C1#, Width_g), Flip_v, '1');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#C0#, Width_g), Flip_v, "Drop survivor[0]", '0');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#C1#, Width_g), Flip_v, "Drop survivor[1] last", '1');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#C0#, Width_g), Flip_v, '0');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#C1#, Width_g), Flip_v, '1');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#C0#, Width_g), Flip_v, "Drop survivor[0]", '0');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#C1#, Width_g), Flip_v, "Drop survivor[1] last", '1');
 
             ---------------------------------------------------------------------------------------
             elsif run("Repeat") then
@@ -211,16 +211,16 @@ begin
                     Flip_v := (others => '0');
 
                     for i in 0 to 4 loop
-                        ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid,
+                        ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid,
                                  toUslv(16#A0# + i, Width_g), Flip_v, choose(i = 4, '1', '0'));
                     end loop;
 
-                    ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#B0#, Width_g), Flip_v, '1');
+                    ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#B0#, Width_g), Flip_v, '1');
 
                     Out_Repeat <= '1';
 
                     for i in 0 to 4 loop
-                        ft_expect_beat(net, AxisSlave_c, toUslv(16#A0# + i, Width_g), Flip_v,
+                        ftExpectBeat(net, AxisSlave_c, toUslv(16#A0# + i, Width_g), Flip_v,
                             "Repeat first pass " & integer'image(i), choose(i = 4, '1', '0'));
                     end loop;
 
@@ -229,11 +229,11 @@ begin
                     Out_Repeat <= '0';
 
                     for i in 0 to 4 loop
-                        ft_expect_beat(net, AxisSlave_c, toUslv(16#A0# + i, Width_g), Flip_v,
+                        ftExpectBeat(net, AxisSlave_c, toUslv(16#A0# + i, Width_g), Flip_v,
                             "Repeat second pass " & integer'image(i), choose(i = 4, '1', '0'));
                     end loop;
 
-                    ft_expect_beat(net, AxisSlave_c, toUslv(16#B0#, Width_g), Flip_v, "Repeat follower", '1');
+                    ftExpectBeat(net, AxisSlave_c, toUslv(16#B0#, Width_g), Flip_v, "Repeat follower", '1');
                 else
                     -- DROP_SKIP_ONLY (no Out_Repeat) or EccPipeline_g > 0 (see above): no test
                     null;
@@ -245,8 +245,8 @@ begin
                 -- the slave VC keeps Out_Ready low), then reset mid-operation. The FIFO must
                 -- come back empty, with no stale beat, and accept new data cleanly afterwards.
                 Flip_v := (others => '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#40#, Width_g), Flip_v, '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#41#, Width_g), Flip_v, '1');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#40#, Width_g), Flip_v, '0');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#41#, Width_g), Flip_v, '1');
                 wait_until_idle(net, as_sync(AxisMaster_c));
 
                 -- Let the packet settle through the FIFO into the output pipeline
@@ -272,8 +272,8 @@ begin
                 check_equal(PacketLevel, toUslv(0, PacketLevel'length), "PacketLevel must be 0 after the reset");
 
                 -- Clean recovery: a fresh packet passes through untouched
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#77#, Width_g), Flip_v, '1');
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#77#, Width_g), Flip_v, "Recovery packet", '1');
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#77#, Width_g), Flip_v, '1');
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#77#, Width_g), Flip_v, "Recovery packet", '1');
 
             end if;
 

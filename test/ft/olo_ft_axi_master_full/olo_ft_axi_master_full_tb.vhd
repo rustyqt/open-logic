@@ -232,7 +232,7 @@ architecture sim of olo_ft_axi_master_full_tb is
         variable ExpDed_v : std_logic;
     begin
         Bundle_v := last & data;
-        ft_expected_beat(Bundle_v, flip, Dec_v, ExpSec_v, ExpDed_v);
+        ftExpectedBeat(Bundle_v, flip, Dec_v, ExpSec_v, ExpDed_v);
         check_axi_stream(net, RdDataSlave_c, Dec_v(UserDataWidth_c - 1 downto 0), blocking => false,
             tlast                                                                          => Dec_v(UserDataWidth_c),
             tuser                                                                          => ExpSec_v & ExpDed_v, msg => msg);
@@ -390,7 +390,7 @@ begin
                     Flip_v := setBits((0, 1), WrCodewordWid_c);
 
                     -- Compute the deterministic decode outcome of the flipped data word
-                    ft_expected_beat(std_logic_vector(resize(unsigned'(x"CAFE"), UserDataWidth_c)), Flip_v,
+                    ftExpectedBeat(std_logic_vector(resize(unsigned'(x"CAFE"), UserDataWidth_c)), Flip_v,
                                      Dec_v, Sec_v, Ded_v);
                     check_equal(Ded_v, '1', "flip pattern must be DED");
 

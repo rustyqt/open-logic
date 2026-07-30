@@ -111,36 +111,36 @@ begin
                 -- Three clean beats. Both master and slave stall at ~20% so back-pressure
                 -- happens organically on every test.
                 Flip_v := (others => '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(10, Width_g), Flip_v);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(20, Width_g), Flip_v);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(30, Width_g), Flip_v);
-                ft_expect_beat(net, AxisSlave_c, toUslv(10, Width_g), Flip_v, "Basic[0]");
-                ft_expect_beat(net, AxisSlave_c, toUslv(20, Width_g), Flip_v, "Basic[1]");
-                ft_expect_beat(net, AxisSlave_c, toUslv(30, Width_g), Flip_v, "Basic[2]");
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(10, Width_g), Flip_v);
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(20, Width_g), Flip_v);
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(30, Width_g), Flip_v);
+                ftExpectBeat(net, AxisSlave_c, toUslv(10, Width_g), Flip_v, "Basic[0]");
+                ftExpectBeat(net, AxisSlave_c, toUslv(20, Width_g), Flip_v, "Basic[1]");
+                ftExpectBeat(net, AxisSlave_c, toUslv(30, Width_g), Flip_v, "Basic[2]");
 
             ---------------------------------------------------------------------------------------
             elsif run("EccSec") then
                 Flip_v := setBits(0, CodewordWidth_c);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#AB#, Width_g), Flip_v);
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#AB#, Width_g), Flip_v, "EccSec corrected");
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#AB#, Width_g), Flip_v);
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#AB#, Width_g), Flip_v, "EccSec corrected");
 
             ---------------------------------------------------------------------------------------
             elsif run("EccDed") then
                 Flip_v := setBits((0, 1), CodewordWidth_c);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#EF#, Width_g), Flip_v);
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#EF#, Width_g), Flip_v, "EccDed detected");
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#EF#, Width_g), Flip_v);
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#EF#, Width_g), Flip_v, "EccDed detected");
 
             ---------------------------------------------------------------------------------------
             elsif run("Mixed") then
                 -- Clean / SEC / clean: adjacent beats keep their flags independent through the
                 -- FIFO + pipeline.
                 Flip_v := (others => '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#01#, Width_g), Flip_v);
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#02#, Width_g), setBits(0, CodewordWidth_c));
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#03#, Width_g), Flip_v);
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#01#, Width_g), (Flip_v'range => '0'),         "Mixed[0] clean");
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#02#, Width_g), setBits(0, CodewordWidth_c),  "Mixed[1] Sec");
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#03#, Width_g), (Flip_v'range => '0'),         "Mixed[2] clean");
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#01#, Width_g), Flip_v);
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#02#, Width_g), setBits(0, CodewordWidth_c));
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#03#, Width_g), Flip_v);
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#01#, Width_g), (Flip_v'range => '0'),         "Mixed[0] clean");
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#02#, Width_g), setBits(0, CodewordWidth_c),  "Mixed[1] Sec");
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#03#, Width_g), (Flip_v'range => '0'),         "Mixed[2] clean");
 
             ---------------------------------------------------------------------------------------
             elsif run("FullEmpty") then
@@ -176,8 +176,8 @@ begin
 
                 for bitIdx in 0 to CodewordWidth_c - 1 loop
                     Flip_v := setBits(bitIdx, CodewordWidth_c);
-                    ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#A5#, Width_g), Flip_v);
-                    ft_expect_beat(net, AxisSlave_c, toUslv(16#A5#, Width_g), Flip_v,
+                    ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#A5#, Width_g), Flip_v);
+                    ftExpectBeat(net, AxisSlave_c, toUslv(16#A5#, Width_g), Flip_v,
                         "SecAllBits flip " & integer'image(bitIdx));
                     wait_until_idle(net, as_sync(AxisSlave_c));
                 end loop;
@@ -196,8 +196,8 @@ begin
                                                           CodewordWidth_c / 2 + 1), CodewordWidth_c);
                     end case;
 
-                    ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#5A#, Width_g), Flip_v);
-                    ft_expect_beat(net, AxisSlave_c, toUslv(16#5A#, Width_g), Flip_v,
+                    ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#5A#, Width_g), Flip_v);
+                    ftExpectBeat(net, AxisSlave_c, toUslv(16#5A#, Width_g), Flip_v,
                         "DedPair " & integer'image(pair));
                     wait_until_idle(net, as_sync(AxisSlave_c));
                 end loop;
@@ -216,14 +216,14 @@ begin
                 end loop;
 
                 push_axi_stream(net, AxisMaster_c, toUslv(16#3C#, Width_g));
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#3C#, Width_g), setBits(2, CodewordWidth_c),
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#3C#, Width_g), setBits(2, CodewordWidth_c),
                     "Latched flip applied");
 
                 wait_until_idle(net, as_sync(AxisSlave_c));
 
                 In_ErrInj_BitFlip <= (others => '0');
                 push_axi_stream(net, AxisMaster_c, toUslv(16#3C#, Width_g));
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#3C#, Width_g), (Flip_v'range => '0'), "Latch cleared");
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#3C#, Width_g), (Flip_v'range => '0'), "Latch cleared");
 
             ---------------------------------------------------------------------------------------
             elsif run("ResetInFlight") then
@@ -263,8 +263,8 @@ begin
 
                 -- Clean recovery: a fresh beat passes through untouched
                 Flip_v := (others => '0');
-                ft_push_beat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#77#, Width_g), Flip_v);
-                ft_expect_beat(net, AxisSlave_c, toUslv(16#77#, Width_g), Flip_v, "Recovery beat");
+                ftPushBeat(net, AxisMaster_c, Clk, In_ErrInj_BitFlip, In_ErrInj_Valid, toUslv(16#77#, Width_g), Flip_v);
+                ftExpectBeat(net, AxisSlave_c, toUslv(16#77#, Width_g), Flip_v, "Recovery beat");
 
             end if;
 

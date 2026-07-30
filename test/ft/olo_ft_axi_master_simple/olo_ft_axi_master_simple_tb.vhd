@@ -238,7 +238,7 @@ architecture sim of olo_ft_axi_master_simple_tb is
         variable ExpDed_v : std_logic;
     begin
         Bundle_v := last & data;
-        ft_expected_beat(Bundle_v, flip, Dec_v, ExpSec_v, ExpDed_v);
+        ftExpectedBeat(Bundle_v, flip, Dec_v, ExpSec_v, ExpDed_v);
         check_axi_stream(net, RdDataSlave_c, Dec_v(AxiDataWidth_g - 1 downto 0), blocking => false,
             tlast                                                                         => Dec_v(AxiDataWidth_g),
             tuser                                                                         => ExpSec_v & ExpDed_v, msg => msg);
@@ -422,7 +422,7 @@ begin
                     Bundle_v                              := (others => '0');
                     Bundle_v(DatBeRange_c)                := (others => '1');
                     Bundle_v(AxiDataWidth_g - 1 downto 0) := std_logic_vector(resize(unsigned'(x"CAFE"), AxiDataWidth_g));
-                    ft_expected_beat(Bundle_v, Flip_v, Dec_v, Sec_v, Ded_v);
+                    ftExpectedBeat(Bundle_v, Flip_v, Dec_v, Sec_v, Ded_v);
                     check_equal(Ded_v, '1', "flip pattern must be DED");
                     check_equal(Dec_v(DatBeRange_c), onesVector(ByteWidth_c), "BE must stay intact for this pattern");
 

@@ -129,7 +129,7 @@ begin
             end loop;
 
             -- Expected decoder outcome for this sample
-            ft_expected_beat(Data_c, Flip_c, ExpD_v, ExpS_v, ExpDd_v);
+            ftExpectedBeat(Data_c, Flip_c, ExpD_v, ExpS_v, ExpDd_v);
             ExpData_v(J_v) := ExpD_v;
             ExpSec_v(J_v)  := ExpS_v;
             ExpDed_v(J_v)  := ExpDd_v;
@@ -376,7 +376,7 @@ begin
                 wait until rising_edge(Clk);
 
                 -- The armed pattern hits this sample: record it in the model by hand
-                ft_expected_beat(toUslv(16#33# mod 2**minimum(Width_g, 30), Width_g), Flip_v,
+                ftExpectedBeat(toUslv(16#33# mod 2**minimum(Width_g, 30), Width_g), Flip_v,
                                  ExpData_v(J_v), ExpSec_v(J_v), ExpDed_v(J_v));
                 J_v      := J_v + 1;
                 In_Data  <= toUslv(16#33# mod 2**minimum(Width_g, 30), Width_g);
