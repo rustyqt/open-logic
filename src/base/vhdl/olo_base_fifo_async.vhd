@@ -86,6 +86,7 @@ end entity;
 ---------------------------------------------------------------------------------------------------
 architecture rtl of olo_base_fifo_async is
 
+    constant EntityName_c   : string   := "olo_base_fifo_async";
     constant AddrWidth_c    : positive := log2ceil(Depth_g)+1;
     constant RamAddrWidth_c : positive := log2ceil(Depth_g);
 

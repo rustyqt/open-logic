@@ -31,6 +31,7 @@ Note that components are split into categories.
     - [CORDIC](#cordic)
     - [Mixers](#mixers)
     - [CIC Filters](#cic-filters)
+    - [FIR Filters](#fir-filters)
     - [Miscellaneous](#miscellaneous-1)
   - [ft](#ft)
     - [Packages (olo\_ft\_pkg\_\<...\>)](#packages-olo_ft_pkg_)
@@ -271,12 +272,26 @@ be used. For deciding which option to use, the following considerations shall be
 | [olo_fix_cic_dec_tdm](./fix/olo_fix_cic_dec_tdm.md)         | CIC decimator (TDM input, TDM output), single- or multi-channel, ratio fixed or runtime configurable               |
 | [olo_fix_cic_dec_par_tdm](./fix/olo_fix_cic_dec_par_tdm.md) | CIC decimator (parallel input, TDM output), single- or multi-channel, ratio fixed or runtime configurable          |
 
+### FIR Filters
+
+Naming convention: _olo_fix_fir\_<dec/int\>\_\<ser/par/semi\>\_ch\<tdm/par\>_
+
+- dec/int: decimating or interpolating FIR filter
+- ser/par/semi: Tap processing (serial, parallel or semi-parallel)
+- tdm/par: TDM or parallel channel handling on input and output
+
+| Entity                                                      | Description                                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [olo_fix_fir_dec_ser_chtdm](./fix/olo_fix_fir_dec_ser_chtdm.md) | Decimating FIR filter (TDM channels, serial tap computation), multi-channel only (not usable for single-channel) <br> Runtime-configurable or fixed ratio, tap count and coefficients - Can be used non-decimating (Ratio = 1)  |
+| [olo_fix_fir_dec_ser_chpar](./fix/olo_fix_fir_dec_ser_chpar.md) | Decimating FIR filter (parallel channels, serial tap computation), single- or multi-channel (one multiplier per channel) <br> Runtime-configurable or fixed ratio, tap count and coefficients - Can be used non-decimating (Ratio = 1) |
+
 ### Miscellaneous
 
 | Entity                                              | Description                                                                                              |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [olo_fix_sample_hold](./fix/olo_fix_sample_hold.md) | Sample and hold a fixed point number - output holds the last sampled value until a new sample is taken.  |
-| [olo_fix_mov_avg](./fix/olo_fix_mov_avg.md)         | Moving average filter                                                                                    |
+| [olo_fix_coef_storage](./fix/olo_fix_coef_storage.md) | Fixed-point coefficient storage - ROM or RAM with Coef read port and optional Cfg write/readback port. |
+| [olo_fix_sample_hold](./fix/olo_fix_sample_hold.md)   | Sample and hold a fixed point number - output holds the last sampled value until a new sample is taken.  |
+| [olo_fix_mov_avg](./fix/olo_fix_mov_avg.md)           | Moving average filter                                                                                    |
 
 ## ft
 
