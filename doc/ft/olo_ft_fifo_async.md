@@ -91,6 +91,8 @@ latched-strobe semantics shared across the _ft_ area.
 
 ### Architecture
 
+![olo_ft_fifo_async architecture](./fifo/olo_ft_fifo_async_arch.drawio.png)
+
 The entity is a peer of [olo_base_fifo_async](../base/olo_base_fifo_async.md): both instantiate the same
 private control core (pointer management, Gray coding, level/flag computation), but the fault-tolerant
 variant supplies hardened building blocks around it:
