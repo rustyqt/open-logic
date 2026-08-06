@@ -97,6 +97,8 @@ latched-strobe semantics shared across the _ft_ area.
 
 ### Architecture
 
+![olo_ft_fifo_packet architecture](./fifo/olo_ft_fifo_packet_arch.drawio.png)
+
 The FIFO is a pipeline of four Open Logic entities:
 
 1. [olo_ft_ecc_encode](./olo_ft_ecc_encode.md) encodes each accepted input beat into a SECDED codeword
