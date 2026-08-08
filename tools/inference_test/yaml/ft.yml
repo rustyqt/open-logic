@@ -206,3 +206,24 @@ entities:
     configurations:
       - name: "s2"
         generics: { SyncStages_g: 2 }
+  # ============================================================
+  # olo_ft_ecc_monitor
+  # ============================================================
+  - entity_name: "olo_ft_ecc_monitor"
+    configurations:
+      - name: "ch8-w16"
+        generics: { Channels_g: 8, CounterWidth_g: 16 }
+
+  # ============================================================
+  # olo_ft_ecc_monitor_axi
+  # ============================================================
+  - entity_name: "olo_ft_ecc_monitor_axi"
+    configurations:
+      - name: "ch8-w16-addr12"
+        generics: { Channels_g: 8, CounterWidth_g: 16, AxiAddrWidth_g: 12 }
+        in_reduce:
+          S_AxiLite_ArAddr: 12
+          S_AxiLite_AwAddr: 12
+          S_AxiLite_WData: 32
+        out_reduce:
+          S_AxiLite_RData: 32

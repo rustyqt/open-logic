@@ -41,6 +41,7 @@ Note that components are split into categories.
     - [FIFO Implementations (olo\_ft\_fifo\_\<...\>)](#fifo-implementations-olo_ft_fifo_)
     - [Timing Related Entities (ft)](#timing-related-entities-ft)
     - [AXI Interfaces (olo\_ft\_axi\_\<...\>)](#axi-interfaces-olo_ft_axi_)
+    - [Monitoring (olo\_ft\_ecc\_monitor\<...\>)](#monitoring-olo_ft_ecc_monitor)
     - [Private Entities](#private-entities)
 
 ## base
@@ -360,6 +361,13 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 | ------------------------------------------------------------------ | ------------------------------------------------------------ |
 | [olo_ft_axi_master_simple](./ft/olo_ft_axi_master_simple.md)       | ECC-protected AXI4 master (simple interface, aligned transfers) |
 | [olo_ft_axi_master_full](./ft/olo_ft_axi_master_full.md)           | ECC-protected AXI4 master with unaligned-access support and width conversion |
+
+### Monitoring (olo_ft_ecc_monitor\<...\>)
+
+| Entity                                                             | Description                                                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [olo_ft_ecc_monitor](./ft/olo_ft_ecc_monitor.md)                   | EDAC monitor: per-channel saturating SEC/DED counters with sticky DED flags and a read-and-clear port |
+| [olo_ft_ecc_monitor_axi](./ft/olo_ft_ecc_monitor_axi.md)           | EDAC monitor with AXI4-Lite register interface and interrupt output |
 
 ### Private Entities
 

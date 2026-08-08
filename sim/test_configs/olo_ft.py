@@ -227,3 +227,19 @@ def add_configs(olo_tb):
         named_config(tb, {'ClockRatio_N_g': N, 'ClockRatio_D_g': D})
     for Stages in [2, 3, 4]:
         named_config(tb, {'SyncStages_g': Stages})
+
+    ### olo_ft_ecc_monitor ###
+    tb = olo_tb.test_bench('olo_ft_ecc_monitor_tb')
+    # Channel sweep: single channel, default, non-power-of-two (exercises the out-of-range read)
+    for Channels in [1, 4, 5, 33]:
+        named_config(tb, {'Channels_g': Channels})
+    # Narrow counter: full saturation sweep runs in bounded time
+    named_config(tb, {'CounterWidth_g': 4})
+    named_config(tb, {'CounterWidth_g': 1})
+
+    ### olo_ft_ecc_monitor_axi ###
+    tb = olo_tb.test_bench('olo_ft_ecc_monitor_axi_tb')
+    # 33 channels exercise the second sticky word; narrow counter the AXI saturation case
+    for Channels in [8, 33]:
+        named_config(tb, {'Channels_g': Channels})
+    named_config(tb, {'CounterWidth_g': 4})

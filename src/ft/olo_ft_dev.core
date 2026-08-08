@@ -15,6 +15,8 @@ filesets:
       - "vhdl/olo_ft_delay_cfg.vhd"
       - "vhdl/olo_ft_ecc_decode.vhd"
       - "vhdl/olo_ft_ecc_encode.vhd"
+      - "vhdl/olo_ft_ecc_monitor.vhd"
+      - "vhdl/olo_ft_ecc_monitor_axi.vhd"
       - "vhdl/olo_ft_fifo_async.vhd"
       - "vhdl/olo_ft_fifo_packet.vhd"
       - "vhdl/olo_ft_fifo_sync.vhd"
