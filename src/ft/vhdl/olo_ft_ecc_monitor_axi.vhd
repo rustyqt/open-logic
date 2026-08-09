@@ -7,8 +7,8 @@
 -- Description
 ---------------------------------------------------------------------------------------------------
 -- EDAC monitor with an AXI4-Lite register interface and interrupt output: olo_ft_ecc_monitor
--- behind an olo_axi_lite_slave, exposing the counters, sticky DED flags and event interrupts
--- through a compact register map (32-bit data width).
+-- behind an olo_axi_lite_slave, exposing the counters and event interrupts through a compact
+-- register map (32-bit data width).
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_ecc_monitor_axi.md
@@ -81,14 +81,12 @@ architecture rtl of olo_ft_ecc_monitor_axi is
     constant EntityName_c : string := "olo_ft_ecc_monitor_axi";
 
     -- Register map (word addresses)
-    constant InfoWord_c       : natural  := 0;
-    constant CtrlWord_c       : natural  := 1;
-    constant IrqStatusWord_c  : natural  := 2;
-    constant IrqEnaWord_c     : natural  := 3;
-    constant StickyBaseWord_c : natural  := 4;
-    constant StickyWords_c    : positive := (Channels_g + 31) / 32;
-    constant CntBaseByte_c    : positive := 2**log2ceil(4 * StickyBaseWord_c + 4 * StickyWords_c);
-    constant CntBaseWord_c    : positive := CntBaseByte_c / 4;
+    constant InfoWord_c      : natural  := 0;
+    constant CtrlWord_c      : natural  := 1;
+    constant IrqStatusWord_c : natural  := 2;
+    constant IrqEnaWord_c    : natural  := 3;
+    constant CntBaseByte_c   : positive := 16;
+    constant CntBaseWord_c   : positive := CntBaseByte_c / 4;
 
     -- INFO register content: [7:0] Channels_g, [12:8] CounterWidth_g
     constant Info_c : std_logic_vector(31 downto 0) :=
@@ -119,12 +117,11 @@ architecture rtl of olo_ft_ecc_monitor_axi is
     signal Rb_Rd      : std_logic;
 
     -- Monitor core taps
-    signal Mon_DedSticky : std_logic_vector(Channels_g - 1 downto 0);
-    signal Mon_EvtSec    : std_logic;
-    signal Mon_EvtDed    : std_logic;
-    signal Mon_RdSecCnt  : std_logic_vector(CounterWidth_g - 1 downto 0);
-    signal Mon_RdDedCnt  : std_logic_vector(CounterWidth_g - 1 downto 0);
-    signal Mon_RdValid   : std_logic;
+    signal Mon_EvtSec   : std_logic;
+    signal Mon_EvtDed   : std_logic;
+    signal Mon_RdSecCnt : std_logic_vector(CounterWidth_g - 1 downto 0);
+    signal Mon_RdDedCnt : std_logic_vector(CounterWidth_g - 1 downto 0);
+    signal Mon_RdValid  : std_logic;
 
 begin
 
@@ -137,8 +134,6 @@ begin
     p_comb : process (all) is
         variable v          : TwoProcess_r;
         variable WordAddr_v : natural;
-        variable Sticky_v   : std_logic_vector(StickyWords_c * 32 - 1 downto 0);
-        variable Word_v     : natural;
     begin
         v := r;
 
@@ -163,9 +158,9 @@ begin
             elsif WordAddr_v = IrqEnaWord_c then
                 v.IrqEna := Rb_WrData(1 downto 0);
             elsif (WordAddr_v >= CntBaseWord_c) and (WordAddr_v < CntBaseWord_c + Channels_g) then
-                -- Any write to a counter word clears the addressed channel (counters + sticky).
-                -- Implemented as a read-and-clear on the core's read port; the read data is
-                -- discarded (CntRdPend stays '0').
+                -- Any write to a counter word clears the addressed channel. Implemented as a
+                -- read-and-clear on the core's read port; the read data is discarded
+                -- (CntRdPend stays '0').
                 v.MonRdEna     := '1';
                 v.MonRdClr     := '1';
                 v.MonRdChannel := toUslv(WordAddr_v - CntBaseWord_c, ChannelBits_c);
@@ -190,12 +185,6 @@ begin
                 v.RbRdData             := (others => '0');
                 v.RbRdData(1 downto 0) := r.IrqEna;
                 v.RbRdValid            := '1';
-            elsif (WordAddr_v >= StickyBaseWord_c) and (WordAddr_v < StickyBaseWord_c + StickyWords_c) then
-                Sticky_v                          := (others => '0');
-                Sticky_v(Channels_g - 1 downto 0) := Mon_DedSticky;
-                Word_v                            := WordAddr_v - StickyBaseWord_c;
-                v.RbRdData                        := Sticky_v(32 * Word_v + 31 downto 32 * Word_v);
-                v.RbRdValid                       := '1';
             elsif (WordAddr_v >= CntBaseWord_c) and (WordAddr_v < CntBaseWord_c + Channels_g) then
                 -- Counter read through the core's read port (response arrives via CntRdPend)
                 v.MonRdEna     := '1';
@@ -301,7 +290,7 @@ begin
             In_EccSec  => In_EccSec,
             In_EccDed  => In_EccDed,
             In_Valid   => In_Valid,
-            DedSticky  => Mon_DedSticky,
+            DedSticky  => open,
             Evt_Sec    => Mon_EvtSec,
             Evt_Ded    => Mon_EvtDed,
             Rd_Channel => r.MonRdChannel,

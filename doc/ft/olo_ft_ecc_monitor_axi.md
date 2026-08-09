@@ -17,8 +17,8 @@ VHDL Source: [olo_ft_ecc_monitor_axi](../../src/ft/vhdl/olo_ft_ecc_monitor_axi.v
 This component wraps the [olo_ft_ecc_monitor](./olo_ft_ecc_monitor.md) EDAC monitor with an
 **AXI4-Lite register interface** (32-bit data width) and an interrupt output. It is the drop-in
 housekeeping block: connect the SEC/DED flags of the ft instances, attach the AXI4-Lite port to the
-system bus, and software gets per-channel error counters, sticky DED flags and event interrupts
-through the register map below.
+system bus, and software gets per-channel error counters and event interrupts through the register
+map below.
 
 ## Generics
 
@@ -60,18 +60,15 @@ register accesses only).
 
 ## Register Map
 
-All registers are 32-bit words. `STICKY_WORDS = ceil(Channels_g / 32)`; the counter block starts at
-`CNT_BASE`, which is `0x10 + 4 * STICKY_WORDS` rounded up to the next power of two (0x20 for up to
-127 channels, 0x40 beyond).
+All registers are 32-bit words. The counter block starts at `CNT_BASE = 0x10`.
 
 | Offset          | Name          | Access           | Content                                                      |
 | :-------------- | :------------ | :--------------- | :----------------------------------------------------------- |
 | 0x00            | INFO          | RO               | [7:0] _Channels_g_, [12:8] _CounterWidth_g_ (software discovery) |
-| 0x04            | CTRL          | WO               | Bit 0: CLR_ALL. Writing '1' clears all counters and sticky flags. Reads as zero. |
+| 0x04            | CTRL          | WO               | Bit 0: CLR_ALL. Writing '1' clears all counters. Reads as zero. |
 | 0x08            | IRQ_STATUS    | R / W1C          | Bit 0: SEC event occurred, bit 1: DED event occurred. Write '1' to clear a bit; an event arriving in the same cycle wins over the clear. |
 | 0x0C            | IRQ_ENA       | RW               | Bit 0/1: interrupt enable mask for the IRQ_STATUS bits. Reset to zero (masked). |
-| 0x10 + 4k       | DED_STICKY_k  | RO               | Sticky DED flags, channels 32k+31 downto 32k, k = 0 .. STICKY_WORDS-1. |
-| CNT_BASE + 4ch  | CNT_ch        | RO / write=clear | [15:0] SEC counter, [31:16] DED counter of channel ch (zero-extended when _CounterWidth_g_ < 16). **Any write clears the channel** (counters and sticky flag) atomically; an event arriving in the same cycle survives the clear. |
+| CNT_BASE + 4ch  | CNT_ch        | RO / write=clear | [15:0] SEC counter, [31:16] DED counter of channel ch (zero-extended when _CounterWidth_g_ < 16). **Any write clears the channel** atomically; an event arriving in the same cycle survives the clear. |
 
 Reads of unmapped addresses are not acknowledged and are answered by the
 [olo_axi_lite_slave](../axi/olo_axi_lite_slave.md) read timeout with an error response. Writes to
@@ -92,6 +89,10 @@ reuses the core's atomic read-and-clear mechanism, so the no-lost-events guarant
 carries over to the register interface. The only state the wrapper adds is the interrupt block (two
 latch bits, two enable bits) and the response registers; everything remains in flip-flops coverable
 by vendor TMR, and like the core, the wrapper has no error-injection ports (no codeword inside).
+
+The core's _DedSticky_ output is not exposed through the register map: per-channel DED visibility
+comes from the counter words and the DED interrupt. The port remains available on
+[olo_ft_ecc_monitor](./olo_ft_ecc_monitor.md) for direct use in fabric-side safing logic.
 
 ### Usage Example
 

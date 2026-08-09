@@ -42,15 +42,13 @@ architecture sim of olo_ft_ecc_monitor_axi_tb is
     -----------------------------------------------------------------------------------------------
     -- Constants
     -----------------------------------------------------------------------------------------------
-    constant ClkPeriod_c      : time     := 10 ns;
-    constant AxiAddrWidth_c   : positive := 12;
-    constant StickyWords_c    : positive := (Channels_g + 31) / 32;
-    constant CntBaseByte_c    : positive := 2**log2ceil(16 + 4 * StickyWords_c);
-    constant InfoAddr_c       : natural  := 16#00#;
-    constant CtrlAddr_c       : natural  := 16#04#;
-    constant IrqStatusAddr_c  : natural  := 16#08#;
-    constant IrqEnaAddr_c     : natural  := 16#0C#;
-    constant StickyBaseAddr_c : natural  := 16#10#;
+    constant ClkPeriod_c     : time     := 10 ns;
+    constant AxiAddrWidth_c  : positive := 12;
+    constant CntBaseByte_c   : positive := 16;
+    constant InfoAddr_c      : natural  := 16#00#;
+    constant CtrlAddr_c      : natural  := 16#04#;
+    constant IrqStatusAddr_c : natural  := 16#08#;
+    constant IrqEnaAddr_c    : natural  := 16#0C#;
 
     constant Info_c : std_logic_vector(31 downto 0) :=
         toUslv(0, 19) & toUslv(CounterWidth_g, 5) & toUslv(Channels_g, 8);
@@ -232,22 +230,6 @@ begin
                 wait_until_idle(net, as_sync(AxiMaster_c));
                 expect_single_read(net, AxiMaster_c, addr => cntAddr(0), data => cntWord(0, 0));
                 expect_single_read(net, AxiMaster_c, addr => cntAddr(Channels_g - 1), data => cntWord(0, 0));
-                expect_single_read(net, AxiMaster_c,
-                    addr => to_unsigned(StickyBaseAddr_c, AxiAddrWidth_c),
-                    data => to_unsigned(0, 32));
-
-            elsif run("DedSticky") then
-                pulseEvent(2, '0', '1', Clk, In_EccSec, In_EccDed);
-                expect_single_read(net, AxiMaster_c,
-                    addr => to_unsigned(StickyBaseAddr_c, AxiAddrWidth_c),
-                    data => to_unsigned(4, 32));
-                -- Channels beyond bit 31 land in the second sticky word
-                if Channels_g > 32 then
-                    pulseEvent(32, '0', '1', Clk, In_EccSec, In_EccDed);
-                    expect_single_read(net, AxiMaster_c,
-                        addr => to_unsigned(StickyBaseAddr_c + 4, AxiAddrWidth_c),
-                        data => to_unsigned(1, 32));
-                end if;
 
             elsif run("IrqFlow") then
                 -- Latch-only while disabled
