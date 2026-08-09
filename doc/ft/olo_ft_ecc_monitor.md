@@ -105,6 +105,9 @@ serves both:
 - **Data-aligned flags** (FIFO/RAM/delay read flags): qualify with the handshake, e.g.
   `In_Valid(i) <= Out_Valid and Out_Ready` for a FIFO or `In_Valid(i) <= RdValid` for a RAM.
 
+When only some channels need qualification, drive the remaining bits with '1'; the all-'1' default
+applies only to a fully unconnected port.
+
 The monitor is single-clock. For sources in other clock domains, qualify the flag in its source
 domain first and cross it as a pulse via [olo_ft_cc_pulse](./olo_ft_cc_pulse.md).
 
