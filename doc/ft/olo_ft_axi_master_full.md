@@ -33,7 +33,6 @@ Differences and additions:
 | DataFifoDepth_g   | positive | 1024       | Number of entries of the **ECC-protected** write/read data buffers (in user-width words). The internal FIFOs of the wrapped master are sized separately (fixed at 2 x _AxiMaxBeats_g_ AXI-width words). |
 | RamStyle_g        | string  | "auto"      | RAM style of the ECC-protected data buffers. Any medium is acceptable here because the content is a full ECC codeword. |
 | IntFifoRamStyle_g | string  | "registers" | RAM style of the wrapped master's internal FIFOs. The default "registers" keeps them in flip-flops so vendor TMR covers them. Overriding this to a RAM primitive re-introduces non-ECC-protected RAM state and is discouraged for fault-tolerant designs (see [olo_ft_axi_master_simple - Fault-Tolerant Storage](./olo_ft_axi_master_simple.md#fault-tolerant-storage)). |
-| EccPipeline_g     | natural | 0           | Number of pipeline stages on the ECC decode datapath of both data buffers (range 0..2), forwarded to the internal [olo_ft_fifo_sync](./olo_ft_fifo_sync.md) instances. |
 
 ## Interfaces
 

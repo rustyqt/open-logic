@@ -43,8 +43,7 @@ entity olo_ft_axi_master_simple is
         ImplWrite_g               : boolean                  := true;
         RamBehavior_g             : string                   := "RBW";
         RamStyle_g                : string                   := "auto";
-        IntFifoRamStyle_g         : string                   := "registers";
-        EccPipeline_g             : natural range 0 to 2     := 0
+        IntFifoRamStyle_g         : string                   := "registers"
     );
     port (
         -- Control Signals
@@ -171,8 +170,7 @@ begin
                 Width_g       => WrBufWidth_c,
                 Depth_g       => DataFifoDepth_g,
                 RamStyle_g    => RamStyle_g,
-                RamBehavior_g => RamBehavior_g,
-                EccPipeline_g => EccPipeline_g
+                RamBehavior_g => RamBehavior_g
             )
             port map (
                 Clk               => Clk,
@@ -215,8 +213,7 @@ begin
                 Width_g       => RdBufWidth_c,
                 Depth_g       => DataFifoDepth_g,
                 RamStyle_g    => RamStyle_g,
-                RamBehavior_g => RamBehavior_g,
-                EccPipeline_g => EccPipeline_g
+                RamBehavior_g => RamBehavior_g
             )
             port map (
                 Clk               => Clk,

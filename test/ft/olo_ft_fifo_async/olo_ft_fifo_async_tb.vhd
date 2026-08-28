@@ -31,8 +31,7 @@ entity olo_ft_fifo_async_tb is
     generic (
         runner_cfg     : string;
         Width_g        : positive range 5 to 128 := 32;
-        Optimization_g : string                  := "SPEED";
-        EccPipeline_g  : natural range 0 to 2    := 0
+        Optimization_g : string                  := "SPEED"
     );
 end entity;
 
@@ -244,7 +243,7 @@ begin
                 wait_until_idle(net, as_sync(AxisMaster_c));
 
                 -- Let the beats settle through the crossing into the decode pipeline
-                for i in 0 to 6 + EccPipeline_g loop
+                for i in 0 to 6 loop
                     wait until rising_edge(Out_Clk);
                 end loop;
 
@@ -260,7 +259,7 @@ begin
                 wait until Out_RstOut = '0' and rising_edge(Out_Clk);
 
                 -- Flush longer than the deepest pipeline: no stale valid may re-appear
-                for i in 0 to 6 + EccPipeline_g loop
+                for i in 0 to 6 loop
                     wait until rising_edge(Out_Clk);
                 end loop;
 
@@ -299,8 +298,7 @@ begin
         generic map (
             Width_g        => Width_g,
             Depth_g        => Depth_c,
-            Optimization_g => Optimization_g,
-            EccPipeline_g  => EccPipeline_g
+            Optimization_g => Optimization_g
         )
         port map (
             In_Clk            => In_Clk,

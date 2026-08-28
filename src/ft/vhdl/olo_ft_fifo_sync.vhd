@@ -10,6 +10,7 @@
 -- Double Error Detection) Hamming code. Wraps olo_base_fifo_sync with a wider
 -- internal word to store parity bits alongside data. The ECC is transparent
 -- to the user: data is encoded on write and decoded/corrected on read.
+-- The entity is intentionally free of output pipelining (see documentation).
 --
 -- Documentation:
 -- https://github.com/open-logic/open-logic/blob/main/doc/ft/olo_ft_fifo_sync.md
@@ -35,14 +36,13 @@ entity olo_ft_fifo_sync is
     generic (
         Width_g         : positive;
         Depth_g         : positive;
-        AlmFullOn_g     : boolean              := false;
-        AlmFullLevel_g  : natural              := 0;
-        AlmEmptyOn_g    : boolean              := false;
-        AlmEmptyLevel_g : natural              := 0;
-        RamStyle_g      : string               := "auto";
-        RamBehavior_g   : string               := "RBW";
-        ReadyRstState_g : std_logic            := '1';
-        EccPipeline_g   : natural range 0 to 2 := 0
+        AlmFullOn_g     : boolean   := false;
+        AlmFullLevel_g  : natural   := 0;
+        AlmEmptyOn_g    : boolean   := false;
+        AlmEmptyLevel_g : natural   := 0;
+        RamStyle_g      : string    := "auto";
+        RamBehavior_g   : string    := "RBW";
+        ReadyRstState_g : std_logic := '1'
     );
     port (
         -- Control Ports
@@ -90,9 +90,6 @@ architecture rtl of olo_ft_fifo_sync is
 
 begin
 
-    -- Encoder: AXI-S handshake propagates user In_Valid/In_Ready through the codec, latch lives
-    -- inside the codec. UseReady_g=true so the FIFO's back-pressure (FIFO.In_Ready) reaches the
-    -- user's In_Ready.
     i_enc : entity work.olo_ft_ecc_encode
         generic map (
             Width_g    => Width_g,
@@ -112,7 +109,6 @@ begin
             ErrInj_Valid   => In_ErrInj_Valid
         );
 
-    -- Base FIFO with codeword-wide word
     i_fifo : entity work.olo_base_fifo_sync
         generic map (
             Width_g         => CodewordWidth_c,
@@ -142,12 +138,10 @@ begin
             AlmEmpty  => AlmEmpty
         );
 
-    -- Decoder: own pipeline stages (EccPipeline_g) and AXI-S handshake propagate FIFO's
-    -- Out_Valid/Out_Ready to the user.
     i_dec : entity work.olo_ft_ecc_decode
         generic map (
             Width_g    => Width_g,
-            Pipeline_g => EccPipeline_g,
+            Pipeline_g => 0,
             UseReady_g => true
         )
         port map (

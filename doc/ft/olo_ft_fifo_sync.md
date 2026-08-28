@@ -32,8 +32,7 @@ flags indicate whether a single-bit error was corrected or a double-bit error wa
 | AlmEmptyLevel_g | natural   | 0       | Almost-empty threshold level                                 |
 | RamStyle_g      | string    | "auto"  | Controls the RAM implementation resource                     |
 | RamBehavior_g   | string    | "RBW"   | Controls the RAM behavior. "RBW" or "WBR"                    |
-| ReadyRstState_g | std_logic | '1'     | Value of _In_Ready_ during reset                             |
-| EccPipeline_g   | natural   | 0       | Number of pipeline stages on the ECC decode datapath (range 0..2), forwarded to the internal [olo_ft_ecc_decode](./olo_ft_ecc_decode.md) instance. 0 = combinational output. |
+| ReadyRstState_g | std_logic | '1'     | Value of _In_Ready_ during reset. Behaves exactly as in [olo_base_fifo_sync](../base/olo_base_fifo_sync.md). |
 
 ## Interfaces
 
@@ -42,7 +41,7 @@ flags indicate whether a single-bit error was corrected or a double-bit error wa
 | Name | In/Out | Length | Default | Description                                                  |
 | :--- | :----- | :----- | ------- | :----------------------------------------------------------- |
 | Clk  | in     | 1      | -       | Clock                                                        |
-| Rst  | in     | 1      | -       | Reset (high-active, synchronous to _Clk_). Empties the FIFO and clears the internal error-injection latch and the codec pipeline. |
+| Rst  | in     | 1      | -       | Reset (high-active, synchronous to _Clk_). Empties the FIFO and clears the internal error-injection latch. |
 
 ### Input Data
 
@@ -91,20 +90,34 @@ latched-strobe semantics shared across the _ft_ area.
 
 ![olo_ft_fifo_sync architecture](./fifo/olo_ft_fifo_sync_arch.drawio.png)
 
-The FIFO is a straight pipeline of three Open Logic entities:
+The entity is composed of three Open Logic entities:
 
-1. [olo_ft_ecc_encode](./olo_ft_ecc_encode.md) encodes each accepted input beat into a SECDED codeword
-   (combinational, the AXI-S handshake passes through).
+1. [olo_ft_ecc_encode](./olo_ft_ecc_encode.md) encodes each accepted input beat into a SECDED codeword.
 2. [olo_base_fifo_sync](../base/olo_base_fifo_sync.md) stores the codeword (entity configured with a
-   codeword-wide word). All levels and status flags come directly from the base FIFO.
+   codeword-wide word). All levels and status flags come directly from it.
 3. [olo_ft_ecc_decode](./olo_ft_ecc_decode.md) decodes and corrects each beat on the read side and drives
-   _Out_EccSec_ / _Out_EccDed_ time-aligned with _Out_Data_. `EccPipeline_g` inserts register stages on the
-   decode datapath (see the [codec documentation](./olo_ft_ecc_decode.md) for the stage placement).
+   _Out_EccSec_ / _Out_EccDed_ time-aligned with _Out_Data_.
 
 The codeword is protected end-to-end while it is inside the FIFO: encoding happens before, and decoding after,
 all storage elements.
 
 See [olo_base_fifo_sync](../base/olo_base_fifo_sync.md) for detailed FIFO behavior.
+
+Note that the ECC FIFOs deliberately come **without a scrubber**, unlike the ECC RAMs
+([olo_ft_ram_sp_scrub](./olo_ft_ram_sp_scrub.md), [olo_ft_ram_sdp_scrub](./olo_ft_ram_sdp_scrub.md)).
+A FIFO does not store data permanently, so as long as it is drained regularly, errors do not accumulate
+in a word over time and there is nothing for a background scrubber to repair.
+
+### Combinational ECC Encoder and Decoder
+
+Both codecs are instantiated with `Pipeline_g = 0`. The datapath to and from the internal FIFO is
+therefore combinational, and the _ft_ entity behaves exactly like its
+[olo_base_fifo_sync](../base/olo_base_fifo_sync.md) counterpart.
+
+The ECC decode lies between the RAM output and the output ports and is the critical path of the entity.
+Where it limits the achievable clock frequency, add an
+[olo_base_pl_stage](../base/olo_base_pl_stage.md) on the output side in the surrounding design.
+Register _Out_Data_, _Out_EccSec_ and _Out_EccDed_ in the same stage to keep them aligned.
 
 ### ECC Overhead, Error Injection and Status Flags
 

@@ -332,6 +332,10 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 
 ### RAM Implementations (olo_ft_ram_\<...\>)
 
+The ECC-protected counterparts of the [olo_base_ram_\<...\>](#ram-implementations-olo_base_ram_)
+entities. The _scrub_ variants additionally repair single-bit errors in the background and have no
+base counterpart.
+
 | Entity                                               | Description                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------ |
 | [olo_ft_ram_sp](./ft/olo_ft_ram_sp.md)               | ECC-protected single port RAM                                |
@@ -341,6 +345,9 @@ triplicated with a majority voter to mitigate single-event upsets. They follow t
 | [olo_ft_ram_sdp_scrub](./ft/olo_ft_ram_sdp_scrub.md) | ECC-protected simple dual-port RAM with an opportunistic background memory scrubber |
 
 ### FIFO Implementations (olo_ft_fifo_\<...\>)
+
+The ECC-protected counterparts of the [olo_base_fifo_\<...\>](#fifo-implementations-olo_base_fifo_)
+entities.
 
 | Entity                                               | Description                                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------ |

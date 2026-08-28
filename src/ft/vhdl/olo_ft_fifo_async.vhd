@@ -42,8 +42,7 @@ entity olo_ft_fifo_async is
         RamBehavior_g   : string                := "RBW";
         ReadyRstState_g : std_logic             := '1';
         Optimization_g  : string                := "SPEED";
-        SyncStages_g    : positive range 2 to 4 := 2;
-        EccPipeline_g   : natural range 0 to 2  := 0
+        SyncStages_g    : positive range 2 to 4 := 2
     );
     port (
         -- Input interface
@@ -243,12 +242,11 @@ begin
     In_RstOut  <= RstInInt;
     Out_RstOut <= RstOutInt;
 
-    -- Decoder (output clock domain). Own pipeline stages via EccPipeline_g; AXI-S handshake
-    -- propagates the core's Out_Valid/Out_Ready to the user.
+    -- Decoder (output clock domain)
     i_dec : entity work.olo_ft_ecc_decode
         generic map (
             Width_g    => Width_g,
-            Pipeline_g => EccPipeline_g,
+            Pipeline_g => 0,
             UseReady_g => true
         )
         port map (

@@ -37,7 +37,6 @@ Error status flags indicate whether a single-bit error was corrected or a double
 | ReadyRstState_g | std_logic | '1'      | Value of _In_Ready_ during reset                             |
 | Optimization_g  | string    | "SPEED"  | "SPEED" or "LATENCY"                                         |
 | SyncStages_g    | positive  | 2        | Number of synchronizer stages per TMR chain in the pointer crossings (range 2..4) |
-| EccPipeline_g   | natural   | 0        | Number of pipeline stages on the ECC decode datapath (range 0..2, _Out_Clk_ domain), forwarded to the internal [olo_ft_ecc_decode](./olo_ft_ecc_decode.md) instance. 0 = combinational output. |
 
 ## Interfaces
 
@@ -105,13 +104,23 @@ variant supplies hardened building blocks around it:
    the domains, and one [olo_ft_cc_reset](./olo_ft_cc_reset.md) instance crosses the resets. All three are
    TMR-hardened (triplicated synchronizer chains with per-bit majority voters).
 4. [olo_ft_ecc_decode](./olo_ft_ecc_decode.md) (Out_Clk domain) decodes and corrects each beat and drives
-   _Out_EccSec_ / _Out_EccDed_ time-aligned with _Out_Data_. `EccPipeline_g` inserts register stages on the
-   decode datapath.
+   _Out_EccSec_ / _Out_EccDed_ time-aligned with _Out_Data_.
 
 Because encoding happens before, and decoding after, all storage elements, the codeword is protected
 end-to-end through the FIFO, including the core's internal write-data register.
 
 See [olo_base_fifo_async](../base/olo_base_fifo_async.md) for detailed FIFO behavior.
+
+### Combinational ECC Encoder and Decoder
+
+Both codecs are instantiated with `Pipeline_g = 0`. The datapath to and from the internal FIFO is
+therefore combinational, and the _ft_ entity behaves exactly like its
+[olo_base_fifo_async](../base/olo_base_fifo_async.md) counterpart.
+
+The ECC decode lies between the RAM output and the output ports and is the critical path of the entity.
+Where it limits the achievable clock frequency, add an
+[olo_base_pl_stage](../base/olo_base_pl_stage.md) on the output side in the surrounding design.
+Register _Out_Data_, _Out_EccSec_ and _Out_EccDed_ in the same stage to keep them aligned.
 
 ### Clock Domain Crossing in TMR-Based Designs
 

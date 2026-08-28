@@ -34,8 +34,7 @@ entity olo_ft_axi_master_full_tb is
         runner_cfg     : string;
         AxiDataWidth_g : natural range 16 to 64 := 32;
         ImplRead_g     : boolean                := true;
-        ImplWrite_g    : boolean                := true;
-        EccPipeline_g  : natural range 0 to 2   := 0
+        ImplWrite_g    : boolean                := true
     );
 end entity;
 
@@ -509,8 +508,7 @@ begin
             DataFifoDepth_g           => DataFifoDepth_c,
             UserDataWidth_g           => UserDataWidth_c,
             ImplRead_g                => ImplRead_g,
-            ImplWrite_g               => ImplWrite_g,
-            EccPipeline_g             => EccPipeline_g
+            ImplWrite_g               => ImplWrite_g
         )
         port map (
             Clk               => Clk,
