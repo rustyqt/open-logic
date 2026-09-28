@@ -24,7 +24,6 @@ def add_configs(olo_tb):
     Widths = [8, 13, 32]
 
     ### olo_ft_ecc_encode ###
-    # Encoder Pipeline_g is capped at 0..1 (combinational or one register near output).
     tb = olo_tb.test_bench('olo_ft_ecc_encode_tb')
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
@@ -37,8 +36,6 @@ def add_configs(olo_tb):
         named_config(tb, {'Stalling_g': True, 'Pipeline_g': Pipeline})
 
     ### olo_ft_ecc_decode ###
-    # Decoder Pipeline_g is capped at 0..2 (combinational / register-near-output /
-    # distributed pipeline). Same width sweep as encode.
     tb = olo_tb.test_bench('olo_ft_ecc_decode_tb')
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
@@ -69,8 +66,8 @@ def add_configs(olo_tb):
         named_config(tb, {'TotalReadLatency_g': Latency, 'SinglePortRam_g': SinglePort,
                           'ScrubClkHz_g': 10000, 'ScrubPeriodMs_g': 15})
 
-    ### olo_ft_ram_tdp ###
-    tb = olo_tb.test_bench('olo_ft_ram_tdp_tb')
+    ### olo_ft_ram_sp ###
+    tb = olo_tb.test_bench('olo_ft_ram_sp_tb')
     for RamBehav in ['RBW', 'WBR']:
         named_config(tb, {'RamBehavior_g': RamBehav})
     for ReadLatency in [1, 2]:
@@ -79,6 +76,17 @@ def add_configs(olo_tb):
         named_config(tb, {'Width_g': Width})
     for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
+
+    ### olo_ft_ram_sp_scrub ###
+    tb = olo_tb.test_bench('olo_ft_ram_sp_scrub_tb')
+    for RamBehav in ['RBW', 'WBR']:
+        named_config(tb, {'RamBehavior_g': RamBehav})
+    for RamRdLatency in [1, 2]:
+        for EccPipeline in [0, 1, 2]:
+            named_config(tb, {'RamRdLatency_g': RamRdLatency,
+                              'EccPipeline_g': EccPipeline})
+    for Width in Widths:
+        named_config(tb, {'Width_g': Width})
 
     ### olo_ft_ram_sdp ###
     tb = olo_tb.test_bench('olo_ft_ram_sdp_tb')
@@ -103,27 +111,16 @@ def add_configs(olo_tb):
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
 
-    ### olo_ft_ram_sp ###
-    tb = olo_tb.test_bench('olo_ft_ram_sp_tb')
+    ### olo_ft_ram_tdp ###
+    tb = olo_tb.test_bench('olo_ft_ram_tdp_tb')
     for RamBehav in ['RBW', 'WBR']:
         named_config(tb, {'RamBehavior_g': RamBehav})
     for ReadLatency in [1, 2]:
         named_config(tb, {'RamRdLatency_g': ReadLatency})
     for Width in Widths:
         named_config(tb, {'Width_g': Width})
-    for EccPipeline in [0, 1]:
+    for EccPipeline in [0, 1, 2]:
         named_config(tb, {'EccPipeline_g': EccPipeline})
-
-    ### olo_ft_ram_sp_scrub ###
-    tb = olo_tb.test_bench('olo_ft_ram_sp_scrub_tb')
-    for RamBehav in ['RBW', 'WBR']:
-        named_config(tb, {'RamBehavior_g': RamBehav})
-    for RamRdLatency in [1, 2]:
-        for EccPipeline in [0, 1, 2]:
-            named_config(tb, {'RamRdLatency_g': RamRdLatency,
-                              'EccPipeline_g': EccPipeline})
-    for Width in Widths:
-        named_config(tb, {'Width_g': Width})
 
     ### olo_ft_fifo_sync ###
     tb = olo_tb.test_bench('olo_ft_fifo_sync_tb')
@@ -136,13 +133,9 @@ def add_configs(olo_tb):
         named_config(tb, {'ReadyRstState_g': RstState})
     for Depth in [31, 53, 128]:
         named_config(tb, {'Depth_g': Depth})
-
-    ### olo_ft_fifo_async ###
-    tb = olo_tb.test_bench('olo_ft_fifo_async_tb')
-    for Width in Widths:
-        named_config(tb, {'Width_g': Width})
-    for Opt in ['SPEED', 'LATENCY']:
-        named_config(tb, {'Optimization_g': Opt})
+    for AlmFull in [True, False]:
+        for AlmEmpty in [True, False]:
+            named_config(tb, {'AlmFullOn_g': AlmFull, 'AlmEmptyOn_g': AlmEmpty})
 
     ### olo_ft_fifo_packet ###
     tb = olo_tb.test_bench('olo_ft_fifo_packet_tb')
@@ -151,6 +144,13 @@ def add_configs(olo_tb):
     # DROP_ONLY is rejected by the entity (In_Last would be stored in RAM outside the ECC codeword)
     for FeatureSet in ['FULL', 'DROP_SKIP_ONLY']:
         named_config(tb, {'FeatureSet_g': FeatureSet})
+
+    ### olo_ft_fifo_async ###
+    tb = olo_tb.test_bench('olo_ft_fifo_async_tb')
+    for Width in Widths:
+        named_config(tb, {'Width_g': Width})
+    for Opt in ['SPEED', 'LATENCY']:
+        named_config(tb, {'Optimization_g': Opt})
 
     ### olo_ft_axi_master_simple ###
     tb = olo_tb.test_bench('olo_ft_axi_master_simple_tb')
